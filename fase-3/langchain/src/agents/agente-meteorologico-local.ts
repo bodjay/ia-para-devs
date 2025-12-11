@@ -1,16 +1,5 @@
-import { createAgent, tool } from "langchain";
-import * as z from "zod";
-
-const getWeather = tool(
-  (input) => `It's always sunny in ${input.city}!`,
-  {
-    name: "get_weather",
-    description: "Get the weather for a given city",
-    schema: z.object({
-      city: z.string().describe("The city to get the weather for"),
-    }),
-  }
-);
+import { createAgent } from "langchain";
+import getWeather from "../tools/get.weather.js";
 
 const SYSTEM_PROMPT = `
   You are a helpful weather agent that provides weather information using the get_weather tool.
@@ -34,8 +23,8 @@ const SYSTEM_PROMPT = `
  * ```
  * 
  */
-const agent = createAgent({
-  model: "openai:gpt-4o-mini",
+const agent = createAgent({  
+  model: "ollama:smollm2:1.7b",
   systemPrompt: SYSTEM_PROMPT,
   tools: [getWeather],
 });
