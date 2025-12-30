@@ -1,0 +1,14 @@
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { Document } from "langchain";
+
+export default async function splitDocumentsExample(docs: Document<Record<string, any>>[]) {
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: 1000,
+    chunkOverlap: 200,
+  });
+
+  const allSplits = await splitter.splitDocuments(docs);
+  console.log(`Split blog post into ${allSplits.length} sub-documents.`);
+
+  return allSplits;
+}

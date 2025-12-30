@@ -1,3 +1,4 @@
+import { AIMessage, ToolMessage } from "langchain";
 import agents from "../src/index.js";
 
 import readline from "readline";
@@ -9,36 +10,42 @@ async function runChat() {
     output: process.stdout
   });
 
-  console.log("Chat iniciado com doutor. Digite '!q' para sair.");
+  console.clear();
+  console.log("Chat iniciado com o Assistente. Digite '/sair' para sair.");
+  console.log("\n");
 
   const chat = () => {
     rl.question("Você: ", async (question: string) => {
-      if (question.toLowerCase() === "!q") {
+      if (question.toLowerCase() === "/sair") {
         rl.close();
         return;
       }
       try {
+        console.log("-----\n");
         // Invoke the chain with the user's question
-        const response = await agents.weatherAgent.invoke({
-          messages: [
-            {
-              role: "system", content: `
-                Synthesize these search results to answer the original question: "${question}"
+        const response = await agents.weatherAgent.invoke(question);
 
-                - Combine information from multiple sources without redundancy
-                - Highlight the most relevant and actionable information
-                - Note any discrepancies between sources
-                - Keep the response concise and well-organized
-              `,
-            },
-            { role: "user", content: question }
-          ]
-        });
-        // const response = await agents.graphAgent.invoke({
-        //   query: question
-        // });
+        const refs = [];
+        for (const message of response.messages || []) {
+          if (message instanceof AIMessage) {
+            if (!message.content) continue;
+            console.log(`[Assistente]: ${message.content}`);
+          }
 
-        console.log(`Agente: ${response.messages.at(-1)?.content}`);
+          if (message instanceof ToolMessage) {
+            refs.push(...message.artifact);
+          }
+        }
+
+        if (refs.length > 0) {
+          const formatted = refs.reduce((acc, curr) => {
+            return acc + `\n -${curr?.metadata.source}`;
+          }, "");
+          console.log("\n");
+          console.log(`[Referencias] ${formatted}`);
+        }
+
+        console.log("-----\n");
       } catch (error) {
         console.error("Ocorreu um erro:", error);
       }

@@ -6,10 +6,10 @@
  * and synthesizes results into a combined response.
  */
 
-import { tool, createAgent, ReactAgent } from "langchain";
+import { tool, createAgent } from "langchain";
+import { ChatOllama } from "@langchain/ollama";
 import { StateGraph, Annotation, START, END, Send } from "@langchain/langgraph";
 import { z } from "zod";
-import { ChatOllama, Ollama } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
 
 
@@ -141,20 +141,16 @@ const getThread = tool(
   }
 );
 
-// Models and agentsf
+
+// Models and agents
 // const llm = new ChatOpenAI({ model: "gpt-4o", apiKey: process.env.OPENAI_API_KEY });
-const llm = new ChatOllama({
-  model: "smollm2:1.7b",
-});
+// const routerLlm = new ChatOpenAI({ model: "gpt-4o-mini", apiKey: process.env.OPENAI_API_KEY });
 
-
-const routerLlm = createAgent({
-  model: "ollama:smollm2:1.7b",
-  responseFormat: ClassificationResultSchema
-});
+const llm = new ChatOllama({ model: "ministral-3:3b" });
+const routerLlm = new ChatOllama({ model: "ministral-3:3b" });
 
 const githubAgent = createAgent({
-  model: "ollama:smollm2:1.7b",
+  model: llm,
   tools: [searchCode, searchIssues, searchPrs],
   systemPrompt: `
 You are a GitHub expert. Answer questions about code,
@@ -164,7 +160,7 @@ repositories, issues, and pull requests.
 });
 
 const notionAgent = createAgent({
-  model: "ollama:smollm2:1.7b",
+  model: llm,
   tools: [searchNotion, getPage],
   systemPrompt: `
 You are a Notion expert. Answer questions about internal
@@ -174,7 +170,7 @@ the organization's Notion workspace.
 });
 
 const slackAgent = createAgent({
-  model: "ollama:smollm2:1.7b",
+  model: llm,
   tools: [searchSlack, getThread],
   systemPrompt: `
 You are a Slack expert. Answer questions by searching
@@ -186,12 +182,12 @@ shared knowledge and solutions.
 
 // Workflow nodes
 async function classifyQuery(state: typeof RouterState.State) {
+  const structuredLlm = routerLlm.withStructuredOutput(ClassificationResultSchema);
 
-  const result = await routerLlm.invoke({
-    messages: [
-      {
-        role: "system",
-        content: `Analyze this query and determine which knowledge bases to consult.
+  const result = await structuredLlm.invoke([
+    {
+      role: "system",
+      content: `Analyze this query and determine which knowledge bases to consult.
 For each relevant source, generate a targeted sub-question optimized for that source.
 
 Available sources:
@@ -200,18 +196,15 @@ Available sources:
 - slack: Team discussions, informal knowledge sharing, recent conversations
 
 Return ONLY the sources that are relevant to the query.`
-      },
-      { role: "user", content: state.query }
-    ]
-  });
+    },
+    { role: "user", content: state.query }
+  ]);
 
-  console.log({result: result})
-
-  return { classifications: result.messages };
+  return { classifications: result.classifications };
 }
 
 function routeToAgents(state: typeof RouterState.State): Send[] {
-  return state.classifications?.map(
+  return state.classifications.map(
     (c) => new Send(c.source, { query: c.query })
   );
 }
@@ -246,22 +239,20 @@ async function synthesizeResults(state: typeof RouterState.State) {
     (r) => `**From ${r.source.charAt(0).toUpperCase() + r.source.slice(1)}:**\n${r.result}`
   );
 
-  const synthesisResponse = await routerLlm.invoke({
-    messages: [
-      {
-        role: "system",
-        content: `Synthesize these search results to answer the original question: "${state.query}"
+  const synthesisResponse = await routerLlm.invoke([
+    {
+      role: "system",
+      content: `Synthesize these search results to answer the original question: "${state.query}"
 
 - Combine information from multiple sources without redundancy
 - Highlight the most relevant and actionable information
 - Note any discrepancies between sources
 - Keep the response concise and well-organized`
-      },
-      { role: "user", content: formatted.join("\n\n") }
-    ]
-  });
+    },
+    { role: "user", content: formatted.join("\n\n") }
+  ]);
 
-  return { finalAnswer: synthesisResponse.messages };
+  return { finalAnswer: synthesisResponse.content };
 }
 
 
@@ -280,6 +271,7 @@ const workflow = new StateGraph(RouterState)
   .addEdge("synthesize", END)
   .compile();
 
+
 // const result = await workflow.invoke({
 //   query: "How do I authenticate API requests?"
 // });
@@ -293,4 +285,6 @@ const workflow = new StateGraph(RouterState)
 // console.log("Final Answer:");
 // console.log(result.finalAnswer);
 
-export default workflow;
+export default {
+  invoke: (input: AgentInput) => workflow.invoke(input),
+};
