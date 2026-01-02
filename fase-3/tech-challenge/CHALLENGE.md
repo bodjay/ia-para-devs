@@ -14,9 +14,9 @@ Entregas técnicas:
         ○ Contextualizar as respostas da LLM com informações atualizadas do paciente.
 
 3. Segurança e validação
-    ● Definir os limites de atuação do assistente para evitar sugestões impróprias (exemplo: nunca prescrever diretamente, sem a validação humana);
-    ● Implementar logging detalhado para rastreamento e auditoria;
-    ● Garantir explainability das respostas da LLM (exemplo: =indicar a fonte da informação utilizada na resposta).
+        ● Definir os limites de atuação do assistente para evitar sugestões impróprias (exemplo: nunca prescrever diretamente, sem a validação humana);
+        ● Implementar logging detalhado para rastreamento e auditoria;
+PRONTO  ● Garantir explainability das respostas da LLM (exemplo: =indicar a fonte da informação utilizada na resposta).
 
 4. Organização do código
     ● Projeto modularizado em Python;

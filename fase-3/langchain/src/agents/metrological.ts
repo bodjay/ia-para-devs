@@ -1,22 +1,10 @@
-import { createAgent, SystemMessage } from "langchain";
+import { createAgent } from "langchain";
 import { ChatOllama } from "@langchain/ollama";
 
-import getWeather from "../tools/get.weather.js";
 import retrieve from "../tools/retrieve.docs.js";
 
-const SYSTEM_PROMPT = new SystemMessage(
-  `
-  You are a helpful weather agent that informs weather temperature using the get_weather tool. Use the tool to answer weather-related questions.
-  You have access to a tool that retrieves context from a blog post. Use the tool to help answer user queries.
-
-  <output_format>
-  </output_format>
-`);
-
 /**
- * @description Cria um agente meteorológico utilizando o modelo "openai:gpt-4o-mini" com suporte a uma tool de previsão do tempo.
- * 
- * @param config - Configurações do agente.
+ * @description Cria um agente meteorológico com suporte a uma tool de previsão do tempo.
  * 
  * @returns Uma instância do agente meteorológico configurado.
  * 
@@ -36,8 +24,7 @@ const provider = new ChatOllama({
 
 const agent = createAgent({
   model: provider,
-  systemPrompt: SYSTEM_PROMPT,
-  tools: [getWeather, retrieve],
+  tools: [retrieve],
 });
 
 const formatted = (question: string) => {
@@ -56,11 +43,24 @@ export default {
       messages: [
         {
           role: "system", content: `
-            Synthesize these search results to answer the original question: "${formattedQuestion}"
+            # Role
+            You're medical assistant that auxiliate general practitioner while his screening.
 
-            - Combine information from multiple sources without redundancy
-            - Note any discrepancies between sources
-            - Keep the response concise and well-organized
+            ## Available tools
+            - You have access to a tool that retrieves context from a tech blog post. 
+              Use the tool to help answer user queries related to technologies.
+            
+            ## Task
+            Try to reason about the underlying semantic intent / meaning. \n
+            Here is the initial question:
+            <question>
+              ${formattedQuestion}
+            </question>
+
+            ## Constrains            
+            - Keep the response concise and well-organized and not redundant.
+            - If question is not related to weather, respond: "I dont know, consult a specialist".
+            - Remember user to confirm the answered to a specialist.
           ` },
         { role: "user", content: formattedQuestion },
       ],

@@ -1,10 +1,13 @@
 import { AIMessage, ToolMessage } from "langchain";
-import agents from "../src/index.js";
-
 import readline from "readline";
+import env from "dotenv";
+
+// import agents from "../src/index.js";
+import basicAgent from "../src/agents/doctor-assistant.js";
+
+env.config();
 
 async function runChat() {
-
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
@@ -22,28 +25,49 @@ async function runChat() {
       }
       try {
         console.log("-----\n");
+        basicAgent.invoke({
+          query: question
+        })
         // Invoke the chain with the user's question
-        const response = await agents.weatherAgent.invoke(question);
+        const response = await basicAgent.invoke({
+          query: question
+        });
 
-        const refs = [];
-        for (const message of response.messages || []) {
-          if (message instanceof AIMessage) {
-            if (!message.content) continue;
-            console.log(`[Assistente]: ${message.content}`);
-          }
+        console.log(response)
+        // const refs = [];
+        // const toolsCalls = [];
+        // for (const message of response || []) {
+        //   if (message instanceof AIMessage) {
+        //     if (!message.content) continue;
+        //     console.log(`[Assistente]: ${message.content}`);
+        //   }
 
-          if (message instanceof ToolMessage) {
-            refs.push(...message.artifact);
-          }
-        }
+        //   if (message instanceof ToolMessage) {
+        //     toolsCalls.push(message.name);
 
-        if (refs.length > 0) {
-          const formatted = refs.reduce((acc, curr) => {
-            return acc + `\n -${curr?.metadata.source}`;
-          }, "");
-          console.log("\n");
-          console.log(`[Referencias] ${formatted}`);
-        }
+        //     if (message.artifact)
+        //       refs.push(...message.artifact);
+        //   }
+        // }
+
+        // if (toolsCalls.length > 0) {
+        //   console.log("\n");
+        //   console.log(`[Ferramentas utilizadas]`);
+        //   console.log(`${toolsCalls.reduce((acc, curr) => {
+        //     return acc + `\n - ${curr}`;
+        //   }, "")}`)
+        // }
+
+        // if (refs.length > 0) {
+        //   const sources = refs.map(ref => ref?.metadata.source);
+        //   const uniques = [...new Set(sources)];
+
+        //   console.log("\n");
+        //   console.log(`[Referencias]`);
+        //   console.log(uniques.reduce((acc, curr) => {
+        //     return acc + `\n - ${curr}`;
+        //   }, ""))
+        // }
 
         console.log("-----\n");
       } catch (error) {

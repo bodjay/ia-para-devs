@@ -8,7 +8,6 @@ export default async function splitDocumentsExample(docs: Document<Record<string
   });
 
   const allSplits = await splitter.splitDocuments(docs);
-  console.log(`Split blog post into ${allSplits.length} sub-documents.`);
 
   return allSplits;
 }

@@ -11,9 +11,5 @@ export default async function loadDocumentsExample() {
   );
 
   const docs = await cheerioLoader.load();
-
-  console.assert(docs.length === 1);
-  console.log(`Total characters: ${docs[0].pageContent.length} loaded from ${docs[0].metadata.source}`);
-
   return docs;
 }

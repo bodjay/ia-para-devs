@@ -1,10 +1,11 @@
-import env from "dotenv";
-import weatherAgent from "./agents/agente-meteorologico-local.js";
-import doctorAgent from "./agents/doctor-hugging-face-graph.js";
-
-env.config();
+import weather from "./agents/metrological.js";
+import doctorAssistant from "./agents/doctor-assistant.js";
+import atendente from './agents/atendente.js';
+import basic from './agents/basic.js';
 
 export default {
-  weatherAgent,
-  doctorAgent,
+  weather,
+  doctorAssistant,
+  atendente,
+  basic,
 };
