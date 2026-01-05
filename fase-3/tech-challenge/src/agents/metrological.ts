@@ -4,7 +4,8 @@ import { ChatOllama } from "@langchain/ollama";
 import retrieve from "../tools/retrieve.docs.js";
 
 /**
- * @description Cria um agente analista de midia com suporte a uma tool de previsão do tempo.
+ * @description Cria um agente meteorológico com suporte a uma tool de previsão do tempo.
+ * 
  * @returns Uma instância do agente meteorológico configurado.
  * 
  * @example
@@ -29,7 +30,7 @@ const agent = createAgent({
 const formatted = (question: string) => {
   return (
     question.length > 100
-      ? question.slice(0, 200) + "..."
+      ? question.slice(0, 100) + "..."
       : question)
     .toUpperCase();
 }
@@ -56,13 +57,10 @@ export default {
               ${formattedQuestion}
             </question>
 
-            Respond ONLY with strict JSON in this format (no explanation, no preamble):
-            Respond in JSON:
-              {{
-                "summary": "...",
-                "score": number,
-                "reasoning": "..."
-              }}
+            ## Constrains            
+            - Keep the response concise and well-organized and not redundant.
+            - If question is not related to weather, respond: "I dont know, consult a specialist".
+            - Remember user to confirm the answered to a specialist.
           ` },
         { role: "user", content: formattedQuestion },
       ],

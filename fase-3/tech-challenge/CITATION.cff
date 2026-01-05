@@ -1,0 +1,10 @@
+	@ARTICLE{BenAbacha-BMC-2019,    
+		  author    = {Asma {Ben Abacha} and Dina Demner{-}Fushman},
+		  title     = {A Question-Entailment Approach to Question Answering},
+		  journal = {{BMC} Bioinform.}, 
+		  volume    = {20},
+  		  number    = {1},
+     		  pages     = {511:1--511:23},
+  		  year      = {2019},
+  	url       = {https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-019-3119-4}
+		   }   
