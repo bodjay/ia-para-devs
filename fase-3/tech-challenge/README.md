@@ -4,6 +4,10 @@
 
 Este projeto faz parte do Tech Challenge 3 e foi desenvolvido para demonstrar a aplicação de técnicas avançadas de inteligência artificial e aprendizado de máquina. Ele inclui agentes inteligentes, ferramentas de processamento de documentos e modelos de classificação, entre outros componentes.
 
+## Ajuste fino
+
+[Tech Challenge 3 - Google Colab](https://colab.research.google.com/drive/1KgwTaTklZjaGo9vz4l5QCVsTTMVy1w1O?usp=sharing)
+
 ## Estrutura do Projeto
 
 A estrutura do projeto está organizada da seguinte forma:
