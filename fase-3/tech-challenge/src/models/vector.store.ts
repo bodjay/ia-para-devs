@@ -3,7 +3,7 @@ import { OllamaEmbeddings } from "@langchain/ollama";
 
 function createVectorStore() {
   const embeddings = new OllamaEmbeddings({
-    model: "llama3.2:1b", // ministral-3:3b
+    model: "llama3.2:1b", // llama3.2:1b, ministral-3:3b
   });
 
   return new MemoryVectorStore(embeddings);

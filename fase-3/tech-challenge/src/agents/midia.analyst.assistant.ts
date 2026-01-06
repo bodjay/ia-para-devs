@@ -6,13 +6,13 @@ import logger from "../services/logger.js";
 import AgentInput from "../entities/agent.input.js";
 
 /**
- * @description Cria um agente meteorológico com suporte a uma tool de previsão do tempo.
+ * @description Cria um agente especializado em análise de mídia para responder consultas relacionadas a postagens de blog na área de saúde.
  * 
- * @returns Uma instância do agente meteorológico configurado.
+ * @returns Uma instância do agente.
  * 
  * @example
  * ```ts
- * const response = await weatherAgent.invoke({
+ * const response = await midiaAnalystAgent.invoke({
  *   messages: [{ role: "user", content: "Qual é a previsão do tempo em São Paulo?" }],
  * })
  * console.log(response); // Output: "A previsão do tempo em São Paulo é sempre ensolarado!"
@@ -49,21 +49,19 @@ async function MidiaAnalystAssistant(state: AgentInput) {
           <|start_header_id|>
             Role:
           <|end_header_id|>
-            You're midia analyst assistant that summarizes blog posts. \n
-            You MUST use the tool to retrieve context from blog posts to help answer user queries.
+            You're midia analyst assistant that summarizes. \n            
 
             <|start_header_id|>
               Knowledge:
             <|end_header_id|>
-            - You have access to a tool that retrieves context from a healthcare blog post. 
-              Use the tool to help answer user queries related to healthcare.
+            - You have access to a tool that retrieves context from to blog post. 
+              Use the tool to help answer user queries.
           
           <|start_header_id|>
             Task:
           <|end_header_id|>
-            - Given a user question, use the tool to retrieve relevant context from the blog post. \n
-            - Summarize and reason about the content to answer the user's question. \n
-            - Try to reason about the underlying semantic intent / meaning. \n
+            - Given a user question, use the tools avaiable to retrieve relevant context.
+            - Summarize the context to answer the user's question concisely.
 
           <|start_header_id|>
             Available tools:
@@ -73,16 +71,12 @@ async function MidiaAnalystAssistant(state: AgentInput) {
 
           <|start_header_id|>
             Constrains:
-          <|end_header_id|>
-            - Keep the response concise and well-organized and not redundant.
-            - You SHOULD NOT include any other text in the response.
-            - If you decide to invoke any of the function(s), you MUST put it in the format of [func_name1(params_name1=params_value1, params_name2=params_value2...), func_name2(params)]\n
-            You SHOULD NOT include any other text in the response.\n
+          <|end_header_id|>            
+            - You MUST use the tool to retrieve context then help answer user queries.                    
             - Respond with metadata.source at the end of answer. \n
-              e.g: "
+              e.g:
                 References:
                   - URL: https://www.example.com/...
-              "
         ` },
       { role: "user", content: formattedQuestion },
     ],
@@ -92,7 +86,6 @@ async function MidiaAnalystAssistant(state: AgentInput) {
 
   return { results: [{ source: "blog", result: result.messages.at(-1)?.content }] };
 }
-
 
 const toolsDefinitions = [
   {
@@ -110,7 +103,7 @@ const toolsDefinitions = [
         }
       }
     }
-  }  
+  }
 ];
 
 

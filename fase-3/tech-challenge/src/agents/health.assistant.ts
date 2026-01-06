@@ -7,6 +7,20 @@ const fineTunnedModel = new ChatOllama({
   model: "trained",
 });
 
+/**
+ * @description Cria um agente especializado em assistência médica para responder dúvidas gerais relacionadas à saúde.
+ * @param state 
+ * @returns Um objeto contendo os resultados da consulta médica.
+ * 
+ * @example
+ * ```ts
+ * const response = await HealthAssistant({
+ *   query: "What are the symptoms of flu?",
+ * });
+ * console.log(response);
+ * // Output: { results: [ { source: "question", result: "The symptoms of flu include..." } ] }
+ * ```
+ */
 async function HealthAssistant(state: AgentInput) {
   const questionAgent = createAgent({
     model: fineTunnedModel,

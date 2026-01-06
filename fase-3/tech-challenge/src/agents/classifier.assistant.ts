@@ -1,21 +1,24 @@
-/**
- * Multi-Source Knowledge Router Example
- *
- * This example demonstrates the router pattern for multi-agent systems.
- * A router classifies queries, routes them to specialized agents in parallel,
- * and synthesizes results into a combined response.
- */
-
 import { ChatOllama } from "@langchain/ollama";
 import { z } from "zod";
-
 import routerState from "../entities/router.state.js";
 import logger from "../services/logger.js";
 
 const llm = new ChatOllama({ model: "llama3.1:8b", temperature: 0 });
-// const llm = new ChatOllama({ model: "llama3.2:3b", temperature: 0 });
 
-// Workflow nodes
+/**
+ * @description Cria um agente especializado em classificar consultas de pacientes ou médicos, determinando a fonte apropriada para responder à consulta e gerando subconsultas otimizadas.
+ * @param state 
+ * @returns Um objeto contendo a classificação da consulta.
+ * 
+ * @example
+ * ```ts
+ * const response = await ClassifierAssistant({
+ *   query: "Book an appointment for Alice",
+ * });
+ * console.log(response);
+ * // Output: { classification: { source: "appointments", query: "Book an appointment for Alice" } }
+ * ```
+ */
 async function ClassifierAssistant(state: typeof routerState.State) {
   logger.info('[debug: ClassifierAssistant] Classificando a consulta...');
 

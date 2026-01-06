@@ -8,9 +8,23 @@ import logger from "../services/logger.js";
 
 const llm = new ChatOllama({
   model: "llama3.1:8b",
-  temperature: 0
+  temperature: 0,
 });
 
+/**
+ * @description Cria um agente especializado em gerenciamento de consultas médicas, capaz de buscar e agendar consultas com base nas solicitações dos usuários.
+ * @param state 
+ * @returns Um objeto contendo os resultados da operação de gerenciamento de consultas.
+ * 
+ * @example
+ * ```ts
+ * const response = await AppointmentAssistant({
+ *   query: "Book an appointment for Alice",
+ * });
+ * console.log(response);
+ * // Output: { results: [ { source: "appointments", result: "Appointment booked for Alice on ..." } ] }
+ * ```
+ */
 async function AppointmentAssistant(state: AgentInput) {
   /**
    * Concise Appointment Agent Prompt

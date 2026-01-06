@@ -5,14 +5,30 @@
  * A router classifies queries, routes them to specialized agents in parallel,
  * and synthesizes results into a combined response.
  */
-
 import { ChatOllama } from "@langchain/ollama";
 import RouterState from "../entities/router.state.js";
 import logger from "../services/logger.js";
 
-
 const llm = new ChatOllama({ model: "llama3.2:1b" });
 
+/**
+ * @description Cria um agente especializado em raciocínio para sintetizar respostas finais com base nos resultados obtidos de diferentes fontes.
+ * @param state 
+ * @returns Um objeto contendo a resposta final sintetizada.
+ * 
+ * @example
+ * ```ts
+ * const response = await ReasoningAssistant({
+ *   query: "What are the symptoms of flu?",
+ *   results: [
+ *     { source: "question", result: "The symptoms of flu include..." },
+ *     { source: "blog", result: "According to the blog post..." }
+ *   ]
+ * });
+ * console.log(response);
+ * // Output: { finalAnswer: "The symptoms of flu include... According to the blog post..." }
+ * ```
+ */
 async function ReasoningAssistant(state: typeof RouterState.State) {
   logger.info('[debug: ReasoningAssistant] Organizando a resposta...')
 
@@ -44,11 +60,10 @@ async function ReasoningAssistant(state: typeof RouterState.State) {
         <|start_header_id|>
           Constrains:
         <|end_header_id|>
-          - You SHOULD NOT include any other text in the response.
-          - You SHOULD NOT be conclusive.
-          - You SHOULD NOT make assumptions outside the provided context.
-          - You SHOULd propagate uncertainties from the context to the final answer.
-          - If context has "References", include them in the final answer.
+          - You SHOULD NOT be conclusive. \n
+          - You SHOULD NOT make assumptions outside the provided context. \n
+          - You SHOULD propagate uncertainties from the context to the final answer. \n
+          - If context has "References", include them in the final answer. \n
       `
     },
     { role: "user", content: state.results.join("\n\n") }

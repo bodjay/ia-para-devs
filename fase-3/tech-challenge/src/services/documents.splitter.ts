@@ -1,7 +1,7 @@
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Document } from "langchain";
 
-export default async function splitDocumentsExample(docs: Document<Record<string, any>>[]) {
+async function splitDocuments(docs: Document<Record<string, any>>[]) {
   const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
     chunkOverlap: 200,
@@ -11,3 +11,5 @@ export default async function splitDocumentsExample(docs: Document<Record<string
 
   return allSplits;
 }
+
+export default splitDocuments;

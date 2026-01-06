@@ -1,8 +1,8 @@
 import readline from "readline";
 import env from "dotenv";
 
-// import agents from "../src/index.js";
 import agents from "../src/index.js";
+import logger from "../src/services/logger.js";
 
 env.config();
 
@@ -17,23 +17,22 @@ async function runChat() {
 
   const chat = () => {
     rl.question("Você: ", async (question: string) => {
-      if (question.toLowerCase() === "/sair") {
-        rl.close();
-        return;
-      }
+      if (question.toLowerCase() === "/sair") return rl.close();
+
       try {
         console.log("-----\n");
-        // Invoke the chain with the user's question
         const response = await agents.atendantWorkflow.invoke({
-          query: question
+          query: question,
         });
 
         console.info("[Assistent]", response.finalAnswer)
         console.log("-----\n");
       } catch (error) {
-        console.error("Ocorreu um erro:", error);
+        logger.error('[error: Terminal] Ocorreu um erro ao processar a consulta.', error);
+        console.log("Desculpe, ocorreu um erro ao processar sua consulta.");
       }
-      chat(); // Continue the chat loop
+
+      chat();
     });
   };
 

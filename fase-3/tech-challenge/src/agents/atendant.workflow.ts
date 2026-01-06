@@ -1,12 +1,4 @@
-/**
- * Multi-Source Knowledge Router Example
- *
- * This example demonstrates the router pattern for multi-agent systems.
- * A router classifies queries, routes them to specialized agents in parallel,
- * and synthesizes results into a combined response.
- */
 import { StateGraph, START, END, Send, } from "@langchain/langgraph";
-import { ChatOpenAI } from "@langchain/openai";
 
 import AppointmentAssistant from "./appointments.assistant.js";
 import ClassifierAssistant from "./classifier.assistant.js";
@@ -24,11 +16,23 @@ function routeToAgents(state: typeof RouterState.State): Send {
     // TODO:  Implementar retentativas de reasoning.
     // Fallback para blog se o source não estiver definido.
     return new Send("blog", { query: state.query });
-  }``
+  }
 
   return new Send(state.classification.source, { query: state.classification.query });
 }
 
+/**
+ * @description Workflow do agente atendente que orquestra a classificação, roteamento para agentes especializados e síntese de respostas.
+ * @returns Um objeto contendo a resposta final sintetizada.
+ * @example
+ * ```ts
+ * const response = await AtendantWorkflow.invoke({
+ *   query: "What are the symptoms of flu?",
+ * });
+ * console.log(response);
+ * // Output: { finalAnswer: "The symptoms of flu include..." }
+ * ```
+ */
 const workflow = new StateGraph(RouterState)
   .addNode("classify", ClassifierAssistant)
   .addNode("appointments", AppointmentAssistant)
