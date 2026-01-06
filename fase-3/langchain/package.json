@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "main": "index.js",
+"main": "index.js",
   "scripts": {
-    "start": "npx tsx ./examples/terminal.ts",
+    "start": "NODE_ENV=production && npx tsx ./examples/terminal.ts",
+    "start:dev": "npx tsx ./examples/terminal.ts",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

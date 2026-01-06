@@ -13,7 +13,7 @@ async function runChat() {
   });
 
   console.clear();
-  console.log("Chat iniciado com o Assistente. Digite '/sair' para sair.");
+  console.log("Digite '/sair' para sair.");
   console.log("\n");
 
   const chat = () => {
@@ -25,11 +25,9 @@ async function runChat() {
       try {
         console.log("-----\n");
         // Invoke the chain with the user's question
-        const response = await agents.atendantWorkflow.invoke({
-          query: question
-        });
+        const response = await agents.midiaAnalyst.invoke(question);
 
-        console.info("[Assistent]", response.finalAnswer)
+        console.info("[Assistent]", response.messages.at(-1)?.content);
         console.log("-----\n");
       } catch (error) {
         console.error("Ocorreu um erro:", error);

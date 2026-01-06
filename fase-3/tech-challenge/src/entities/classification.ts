@@ -1,5 +1,5 @@
 
 export default interface Classification {
-  source: "question" | "appointments";
+  source: "question" | "appointments" | "blog";
   query: string;
 }

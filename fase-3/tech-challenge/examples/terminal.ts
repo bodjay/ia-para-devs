@@ -12,7 +12,6 @@ async function runChat() {
     output: process.stdout
   });
 
-  console.clear();
   console.log("Chat iniciado com o Assistente. Digite '/sair' para sair.");
   console.log("\n");
 

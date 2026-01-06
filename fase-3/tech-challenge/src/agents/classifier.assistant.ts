@@ -10,11 +10,15 @@ import { ChatOllama } from "@langchain/ollama";
 import { z } from "zod";
 
 import routerState from "../entities/router.state.js";
+import logger from "../services/logger.js";
 
-const llm = new ChatOllama({ model: "llama3.1:8b" });
+const llm = new ChatOllama({ model: "llama3.1:8b", temperature: 0 });
+// const llm = new ChatOllama({ model: "llama3.2:3b", temperature: 0 });
 
 // Workflow nodes
-async function TriageAssistant(state: typeof routerState.State) {
+async function ClassifierAssistant(state: typeof routerState.State) {
+  logger.info('[debug: ClassifierAssistant] Classificando a consulta...');
+
   const classificationInstructions = `
     <|start_header_id|>
       Role:
@@ -28,7 +32,7 @@ async function TriageAssistant(state: typeof routerState.State) {
       You MUST respond with ONLY valid JSON matching this schema: \n
       {
         "classification": {
-          "source": "appointments" | "question",
+          "source": "appointments" | "question" | "blog",
           "query": string
         }
       } \n
@@ -51,6 +55,9 @@ async function TriageAssistant(state: typeof routerState.State) {
       
       - Use "question" for: symptoms, medical advice, treatment options, health information.
       {"classification": {"source": "question", "query": "Headache treatment options"}} \n
+
+      - Use "blog" for: any other subject related to healthcare technology, industry trends \n
+      {"classification": {"source": "blog", "query": "Why AI Still Isn’t Fixing Patient Referrals—And How It Could"}} \n
       
       - Generate ONE sub-query. If the query doesn't relate to a source, omit it: \n
       {"classification": null}
@@ -65,7 +72,7 @@ async function TriageAssistant(state: typeof routerState.State) {
     { role: "user", content: state.query }
   ]);
 
-  // console.log('[debug:classify] Dados da classificação', result);
+  logger.info('[debug: ClassifierAssistant] Resultado:', result);
 
   return { classification: result.classification };
 }
@@ -73,11 +80,11 @@ async function TriageAssistant(state: typeof routerState.State) {
 // Structured output schema for classifier
 const ClassificationResultSchema = z.object({
   classification: z?.object({
-    source: z.enum(["question", "appointments"]),
+    source: z.enum(["question", "appointments", "blog"]),
     query: z.string(),
   }).nullable()
     .describe("Classification of patient/doctor query/request"),
 });
 
 
-export default TriageAssistant;
+export default ClassifierAssistant;

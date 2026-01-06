@@ -1,6 +1,7 @@
 import { ChatOllama } from "@langchain/ollama";
 import AgentInput from "../entities/agent.input.js";
 import { createAgent } from "langchain";
+import logger from "../services/logger.js";
 
 const fineTunnedModel = new ChatOllama({
   model: "trained",
@@ -11,7 +12,7 @@ async function HealthAssistant(state: AgentInput) {
     model: fineTunnedModel,
   });
 
-  console.log('[debug: Perguntas clínicas] Processando sua dúvida...')
+  logger.info('[debug: HealthAssistant] Processando sua dúvida...')
 
   const result = await questionAgent.invoke({
     messages: [
@@ -27,6 +28,9 @@ async function HealthAssistant(state: AgentInput) {
       { role: "user", content: state.query }
     ]
   });
+
+  logger.info('[debug: HealthAssistant] Resultado:', result);
+
   return { results: [{ source: "question", result: result.messages.at(-1)?.content }] };
 }
 

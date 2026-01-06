@@ -4,7 +4,7 @@ import { CheerioWebBaseLoader } from "@langchain/community/document_loaders/web/
 export default async function loadDocumentsExample() {
   const pTagSelector = "p";
   const cheerioLoader = new CheerioWebBaseLoader(
-    "https://lilianweng.github.io/posts/2023-06-23-agent/",
+    "https://thehealthcareblog.com/",
     {
       selector: pTagSelector,
     }
