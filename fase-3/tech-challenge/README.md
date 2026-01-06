@@ -1,8 +1,3 @@
----
-title: "Tech Challenge 3"
-subtitle: "Ajudante Virtual"
----
-
 # Tech Challenge 3
 
 ## Descrição
