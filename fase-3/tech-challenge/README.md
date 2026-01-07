@@ -33,6 +33,10 @@ A estrutura do projeto está organizada da seguinte forma:
    ```bash
    npm run start:dev
    ```
+4. Faça a ingestão do modelo treinado para o Ollama utilizando `Modelfile`:
+   ```bash
+   ollama create trained -f ./infra/Modelfile
+   ```
 
 ### Exemplos
 Utilize  as seguintes questões para executar os multi agentes:
