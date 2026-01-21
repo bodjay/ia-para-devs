@@ -1,100 +1,68 @@
 import cv2
+import mediapipe as mp # https://github.com/google-ai-edge/mediapipe/issues/6192
 import os
 from tqdm import tqdm
 
-import mediapipe as mp
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
-from mediapipe.python.solutions import drawing_utils
-from mediapipe.python.solutions.drawing_utils import landmark_pb2
-from mediapipe.python.solutions.pose import pose_connections
-
-# --- MediaPipe Tasks setup ---
-MODEL_PATH = "pose_landmarker_lite.task"
-
-BaseOptions = python.BaseOptions
-PoseLandmarker = vision.PoseLandmarker
-PoseLandmarkerOptions = vision.PoseLandmarkerOptions
-VisionRunningMode = vision.RunningMode
-
 def detect_pose(video_path, output_path):
-    # Initialize MediaPipe Pose Landmarker
-    options = PoseLandmarkerOptions(
-        base_options=BaseOptions(model_asset_path=MODEL_PATH),
-        running_mode=VisionRunningMode.VIDEO,
-        output_segmentation_masks=False
-    )
+    # Inicializar o MediaPipe Pose
+    mp_pose = mp.solutions.pose
+    pose = mp_pose.Pose()
+    mp_drawing = mp.solutions.drawing_utils
 
-    with PoseLandmarker.create_from_options(options) as pose:
-        cap = cv2.VideoCapture(video_path)
+    # Capturar vídeo do arquivo especificado
+    cap = cv2.VideoCapture(video_path)
 
-        if not cap.isOpened():
-            print("Erro ao abrir o vídeo.")
-            return
+    # Verificar se o vídeo foi aberto corretamente
+    if not cap.isOpened():
+        print("Erro ao abrir o vídeo.")
+        return
 
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = int(cap.get(cv2.CAP_PROP_FPS))
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    # Obter propriedades do vídeo
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = int(cap.get(cv2.CAP_PROP_FPS))
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    # Definir o codec e criar o objeto VideoWriter
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec para MP4
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
-        frame_index = 0
+    # Loop para processar cada frame do vídeo com barra de progresso
+    for _ in tqdm(range(total_frames), desc="Processando vídeo"):
+        # Ler um frame do vídeo
+        ret, frame = cap.read()
 
-        for _ in tqdm(range(total_frames), desc="Processando vídeo"):
-            ret, frame = cap.read()
-            if not ret:
-                break
+        # Se não conseguiu ler o frame (final do vídeo), sair do loop
+        if not ret:
+            break
 
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        # Converter o frame para RGB
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            mp_image = mp.Image(
-                image_format=mp.ImageFormat.SRGB,
-                data=rgb_frame
-            )
+        # Processar o frame para detectar a pose
+        results = pose.process(rgb_frame)
 
-            timestamp_ms = int((frame_index / fps) * 1000)
-            result = pose.detect_for_video(mp_image, timestamp_ms)
+        # Desenhar as anotações da pose no frame
+        if results.pose_landmarks:
+            mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
-            if result.pose_landmarks:
-                for pose_landmarks in result.pose_landmarks:
-                    landmark_list = landmark_pb2.NormalizedLandmarkList(
-                        landmark=[
-                            landmark_pb2.NormalizedLandmark(
-                                x=lm.x,
-                                y=lm.y,
-                                z=lm.z,
-                                visibility=lm.visibility
-                            )
-                            for lm in pose_landmarks
-                        ]
-                    )
+        # Escrever o frame processado no vídeo de saída
+        out.write(frame)
 
-                    drawing_utils.draw_landmarks(
-                        frame,
-                        landmark_list,
-                        pose_connections.POSE_CONNECTIONS
-                    )
+        # Exibir o frame processado
+        cv2.imshow('Video', frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
+    # Liberar a captura de vídeo e fechar todas as janelas
+    cap.release()
+    out.release()
+    cv2.destroyAllWindows()
 
-            out.write(frame)
-
-            cv2.imshow("Video", frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-            frame_index += 1
-
-        cap.release()
-        out.release()
-        cv2.destroyAllWindows()
-
-
-# Paths
+# Caminho para o vídeo de entrada e saída
 script_dir = os.path.dirname(os.path.abspath(__file__))
-input_video_path = os.path.join(script_dir, '../assets/video.mp4')
-output_video_path = os.path.join(script_dir, 'output_video_pose.mp4')
+input_video_path = os.path.join(script_dir, '../assets/video.mp4')  # Nome do vídeo de entrada
+output_video_path = os.path.join(script_dir, 'output_video_pose.mp4')  # Nome do vídeo de saída
 
-print(input_video_path)
+# Processar o vídeo
 detect_pose(input_video_path, output_video_path)
