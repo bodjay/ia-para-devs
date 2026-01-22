@@ -1,68 +1,82 @@
 import cv2
-import mediapipe as mp # https://github.com/google-ai-edge/mediapipe/issues/6192
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 import os
 from tqdm import tqdm
 
-def detect_pose(video_path, output_path):
-    # Inicializar o MediaPipe Pose
-    mp_pose = mp.solutions.pose
-    pose = mp_pose.Pose()
-    mp_drawing = mp.solutions.drawing_utils
+def draw_landmarks(frame, detection_result):
+    """Manually draw pose landmarks and connections using OpenCV."""
+    if not detection_result.pose_landmarks:
+        return frame
+    
+    # Pose connections (standard 33 landmarks)
+    POSE_CONNECTIONS = [
+        (11, 12), (11, 13), (13, 15), (12, 14), (14, 16), # Shoulders & Arms
+        (11, 23), (12, 24), (23, 24),                   # Torso
+        (23, 25), (25, 27), (27, 31), (24, 26), (26, 28), (28, 32) # Legs
+    ]
 
-    # Capturar vídeo do arquivo especificado
+    h, w, _ = frame.shape
+    for pose_landmarks in detection_result.pose_landmarks:
+        # Draw Dots
+        for idx, landmark in enumerate(pose_landmarks):
+            cx, cy = int(landmark.x * w), int(landmark.y * h)
+            cv2.circle(frame, (cx, cy), 5, (0, 255, 0), -1)
+
+        # Draw Lines
+        for connection in POSE_CONNECTIONS:
+            start_idx, end_idx = connection
+            start = pose_landmarks[start_idx]
+            end = pose_landmarks[end_idx]
+            cv2.line(frame, 
+                     (int(start.x * w), int(start.y * h)), 
+                     (int(end.x * w), int(end.y * h)), 
+                     (255, 0, 0), 2)
+    return frame
+
+def detect_pose(video_path, output_path, model_path='pose_landmarker_lite.task'):
+    # Initialize Tasks API
+    base_options = python.BaseOptions(model_asset_path=model_path)
+    options = vision.PoseLandmarkerOptions(
+        base_options=base_options,
+        running_mode=vision.RunningMode.VIDEO
+    )
+
     cap = cv2.VideoCapture(video_path)
-
-    # Verificar se o vídeo foi aberto corretamente
-    if not cap.isOpened():
-        print("Erro ao abrir o vídeo.")
-        return
-
-    # Obter propriedades do vídeo
+    fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    # Definir o codec e criar o objeto VideoWriter
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec para MP4
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
 
-    # Loop para processar cada frame do vídeo com barra de progresso
-    for _ in tqdm(range(total_frames), desc="Processando vídeo"):
-        # Ler um frame do vídeo
-        ret, frame = cap.read()
+    with vision.PoseLandmarker.create_from_options(options) as landmarker:
+        for _ in tqdm(range(total_frames), desc="Processando"):
+            ret, frame = cap.read()
+            if not ret: break
 
-        # Se não conseguiu ler o frame (final do vídeo), sair do loop
-        if not ret:
-            break
+            # Convert BGR to RGB and wrap in mp.Image
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+            
+            # Tasks require specific timestamps in VIDEO mode
+            timestamp_ms = int(cap.get(cv2.CAP_PROP_POS_MSEC))
+            
+            # Detect and Draw
+            result = landmarker.detect_for_video(mp_image, timestamp_ms)
+            frame = draw_landmarks(frame, result)
 
-        # Converter o frame para RGB
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            out.write(frame)
+            cv2.imshow('Pose Detection', frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'): break
 
-        # Processar o frame para detectar a pose
-        results = pose.process(rgb_frame)
-
-        # Desenhar as anotações da pose no frame
-        if results.pose_landmarks:
-            mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
-
-        # Escrever o frame processado no vídeo de saída
-        out.write(frame)
-
-        # Exibir o frame processado
-        cv2.imshow('Video', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    # Liberar a captura de vídeo e fechar todas as janelas
     cap.release()
     out.release()
     cv2.destroyAllWindows()
 
-# Caminho para o vídeo de entrada e saída
+# Execution
 script_dir = os.path.dirname(os.path.abspath(__file__))
-input_video_path = os.path.join(script_dir, '../assets/video.mp4')  # Nome do vídeo de entrada
-output_video_path = os.path.join(script_dir, 'output_video_pose.mp4')  # Nome do vídeo de saída
-
-# Processar o vídeo
-detect_pose(input_video_path, output_video_path)
+# Note: You must download pose_landmarker_lite.task from Google's official site
+model_path = os.path.join(script_dir, 'pose_landmarker_lite.task')
+detect_pose('../assets/video.mp4', 'output.mp4', model_path)
