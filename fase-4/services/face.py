@@ -1,7 +1,7 @@
 
 import cv2
 
-def detect_webcam():   
+def detect_face_in_webcam():   
     video_capture = cv2.VideoCapture(0)
 
     if not video_capture.isOpened():
@@ -20,9 +20,15 @@ def detect_webcam():
                 break
 
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+            faces = face_cascade.detectMultiScale(
+                gray,
+                scaleFactor=1.1,
+                minNeighbors=6,
+                minSize=(30, 30),
+            )
 
             for (x, y, w, h) in faces:
+                
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
             cv2.imshow('Face detection', frame)
@@ -38,4 +44,4 @@ def detect_webcam():
 
 
 if __name__ == "__main__":
-    detect_webcam()
+    detect_face_in_webcam()

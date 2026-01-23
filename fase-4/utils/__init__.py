@@ -1,0 +1,1 @@
+from .file_load import load_known_face_from_folder
