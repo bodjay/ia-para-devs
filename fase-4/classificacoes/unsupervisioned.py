@@ -31,6 +31,8 @@ texts = [[word for word in document.lower().split() if word not in stop_words] f
 
 # Criar um dicionário e corpus
 dictionary = corpora.Dictionary(texts)
+
+# C2bow -- funciona como um modelo de palavra para documento, onde cada documento é representado como uma lista de tuplas (id_da_palavra, frequência)
 corpus = [dictionary.doc2bow(text) for text in texts]
 
 # Treinar o modelo LDA
