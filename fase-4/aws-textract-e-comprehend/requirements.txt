@@ -1,0 +1,12 @@
+audioop-lts==0.2.2
+decorator==5.2.1
+ImageIO==2.37.2
+imageio-ffmpeg==0.6.0
+numpy==2.4.2
+pillow==11.3.0
+proglog==0.1.12
+python-dotenv==1.2.1
+standard-aifc==3.13.0
+standard-chunk==3.13.0
+tqdm==4.67.3
+typing_extensions==4.15.0
