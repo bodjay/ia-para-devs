@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-import usecases.prepare_analysis_resources as prepare_analysis_resources
+import usecases.prepare_analysis_resources
 
 load_dotenv()
 
@@ -22,7 +22,7 @@ def main():
     ]
     
     # Inicia o processo de extração de audio e transcrição para cada recurso/
-    prepare_analysis_resources.setup(resources)
+    usecases.prepare_analysis_resources.act(resources)
 
 
 if __name__ == "__main__":
