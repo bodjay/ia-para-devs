@@ -1,7 +1,13 @@
-import os
-import modules.transcribe_video as transcribe_video
+from dotenv import load_dotenv
+import usecases.prepare_analysis_resources as prepare_analysis_resources
 
-if __name__ == "__main__":
+load_dotenv()
+
+""""
+Ponto de entrada principal do programa.
+Define os recursos de vídeo, áudio e transcrição, e inicia o processo de preparação dos recursos para análise.
+"""
+def main():
     resources = [
         {
             "video_path": "./assets/simulacao-1-video.mp4",
@@ -14,18 +20,10 @@ if __name__ == "__main__":
             "text_output_path": "./assets/simulacao-2-transcricao.txt"
         },
     ]
+    
+    # Inicia o processo de extração de audio e transcrição para cada recurso/
+    prepare_analysis_resources.setup(resources)
 
-    for resource in resources:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        video_path = os.path.join(
-            script_dir, resource["video_path"])  # Video de entrada
-        audio_path = os.path.join(script_dir, resource["audio_path"])
 
-        text_output_path = os.path.join(
-            script_dir, resource["text_output_path"])
-
-        if not os.path.exists(audio_path):
-            transcribe_video.extract_audio_from_video(video_path, audio_path)
-
-        if not os.path.exists(text_output_path):
-            transcribe_video.transcribe_audio_to_text(audio_path, text_output_path)
+if __name__ == "__main__":
+    main()
