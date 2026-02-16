@@ -1,5 +1,6 @@
 import boto3
 import textwrap
+import json
 
 CHUNK_SIZE = 4000
 
@@ -18,35 +19,23 @@ def act(resources):
 
         chunks = split_text_into_chunks(text, CHUNK_SIZE)
 
+        results = []
+
         for i, chunk in enumerate(chunks):
             sentiment = comprehend.detect_sentiment(
                 Text=chunk, LanguageCode='pt')
 
-            chunk_output_file = path_to_output.replace(
-                ".txt", f"_chunk_{i+1}.sentiment.txt")
+            results.append({
+                "transcription": chunk,
+                "sentiment": sentiment
+            })
 
-            with open(chunk_output_file, 'w') as output_file:
-                output_file.write(str(sentiment))
+        final_output_file = path_to_output.replace(".txt", ".final_output.json")
 
-            final_output_file = path_to_output.replace(".txt", ".final_output.txt")
+        with open(final_output_file, 'w') as final_output:
+            json.dump(results, final_output, ensure_ascii=False, indent=4)
 
-            with open(final_output_file, 'w') as final_output:
-                final_output.write("Transcrição Original:\n")
-                final_output.write(text + "\n\n")
-
-                for j, chunk in enumerate(chunks):
-                    sentiment = comprehend.detect_sentiment(
-                        Text=chunk, LanguageCode='pt')
-
-                    chunk_output_file = path_to_output.replace(
-                        ".txt", f"_chunk_{j+1}.sentiment.txt")
-
-                    with open(chunk_output_file, 'w') as output_file:
-                        output_file.write(str(sentiment))
-
-                    final_output.write(f"Chunk {j+1}: {str(sentiment)}\n")
-
-        print(f"[{logPrefix}] Análise de sentimento concluída. Resultados salvos em arquivos separados, consolidado e no arquivo final com transcrição.")
+    print(f"[{logPrefix}] Análise de sentimento concluída. Resultados salvos no arquivo JSON consolidado.")
 
 
 def split_text_into_chunks(text, chunk_size):
