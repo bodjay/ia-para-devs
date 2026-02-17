@@ -1,8 +1,8 @@
 
 import os
 
-import modules.extract_audio_from_video
-import modules.transcribe_audio_to_text
+import services.extract_audio_from_video
+import services.transcribe_audio_to_text
 
 """"
 Este módulo é responsável por preparar os recursos necessários para a análise, incluindo:
@@ -24,10 +24,10 @@ def act(paths):
                 script_dir, path["text_output_path"])
 
             if not os.path.exists(audio_path) and os.path.exists(video_path):
-                modules.extract_audio_from_video.extract(video_path, audio_path)
+                services.extract_audio_from_video.extract(video_path, audio_path)
 
             if not os.path.exists(text_output_path) and os.path.exists(audio_path):
-                modules.transcribe_audio_to_text.transcribe(audio_path, text_output_path)        
+                services.transcribe_audio_to_text.transcribe(audio_path, text_output_path)        
 
     except Exception as e:
         print(f"[{logPrefix}] Erro durante o processamento: {e}")
