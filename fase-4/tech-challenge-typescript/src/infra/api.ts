@@ -16,7 +16,9 @@ app.post('/query', async (req: any, res: any) => {
   logger.info('[API] Recebendo consulta', { query });
 
   try {
-    const response = await assistant.atendantWorkflow.invoke(query);
+    const response = await assistant.atendantWorkflow.invoke({
+      query
+    });
 
     logger.info('[API] Consulta processada com sucesso', { response });
     res.json(response);

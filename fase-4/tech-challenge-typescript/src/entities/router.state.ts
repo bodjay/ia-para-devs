@@ -1,6 +1,6 @@
 import { Annotation } from "@langchain/langgraph";
 import AgentOutput from "./agent.output.js";
-import Classification from "./classification.js";
+import { Classification } from "./classification.js";
 
 export default Annotation.Root({
   query: Annotation<string>(),

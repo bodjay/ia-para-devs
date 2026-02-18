@@ -8,7 +8,9 @@ import logger from "../services/logger.js";
 import PrenatalCareAssistant from "./prenatal.care.assistant.js";
 
 function routeToAgents(state: typeof RouterState.State): Send {
-  if (!state.classification.source) {
+  logger.info(`[AtendantWorkflow] Routing to agent: ${state.classification}, query: ${state.query}`);
+
+  if (!state.classification) {
     logger.error('[error: AtendantWorkflow] Source not defined in classification.', state.classification);
 
     // TODO:  Implementar retentativas de reasoning.
@@ -16,7 +18,8 @@ function routeToAgents(state: typeof RouterState.State): Send {
     return new Send("blog", { query: state.query });
   }
 
-  return new Send(state.classification.source, { query: state.classification.query });
+
+  return new Send(state.classification, { query: state.query });
 }
 
 /**

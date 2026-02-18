@@ -1,6 +1,7 @@
 import { ComprehendClient, DetectSentimentCommand, DetectSentimentCommandInput, SentimentScore } from "@aws-sdk/client-comprehend";
 import fs from "fs";
 import logger from "./logger.js";
+import { tool } from "langchain";
 
 const CHUNK_SIZE = 4000;
 
