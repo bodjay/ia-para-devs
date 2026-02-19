@@ -1,7 +1,5 @@
 import { ComprehendClient, DetectSentimentCommand, DetectSentimentCommandInput, SentimentScore } from "@aws-sdk/client-comprehend";
-import fs from "fs";
 import logger from "./logger.js";
-import { tool } from "langchain";
 
 const CHUNK_SIZE = 4000;
 
@@ -66,6 +64,7 @@ async function SentimentAnalyzerService(query: string): Promise<SentimentResult[
       logger.info(`[sentment.analyzer] Analisando chunk ${i + 1}/${chunks.length}`);
 
       const sentiment = await analyzeSentimentChunk(chunks[i]);
+      logger.info(`[sentment.analyzer] Resultado do chunk ${i + 1}:`, sentiment);
 
       results.push({
         transcription: chunks[i],

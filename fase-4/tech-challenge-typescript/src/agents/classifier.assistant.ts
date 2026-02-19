@@ -31,6 +31,9 @@ async function ClassifierAssistant(state: typeof routerState.State) {
   logger.info('[debug: ClassifierAssistant] Classificando a consulta...');
   const structuredLlm = llm.withStructuredOutput(ClassificationResultSchema);
 
+  const userContent = state.results?.at(-1)?.result || state.query;
+  const userContentString = typeof userContent === 'string' ? userContent : userContent.toString();
+
   const result = await structuredLlm.invoke([
     {
       role: "system",
@@ -44,41 +47,29 @@ async function ClassifierAssistant(state: typeof routerState.State) {
           The query may relate to only one source. \n
 
         <|start_header_id|>
-          Output:
-        <|end_header_id|>
-        -- Start: Structured output schema-- \n
-          You MUST respond with ONLY valid JSON matching this schema: \n
-          {
-            "classification": {
-              "source": "prenatal_care" | "postpartum" | "violence_victim",
-            }
-          }
-        -- End: Structured output schema-- \n
-
-        <|start_header_id|>
           Task:
         <|end_header_id|>    
           - Prenatal care: signs of gestational anxiety, pregnancy-related concerns, prenatal checkups.
           - Postpartum: signs of postpartum depression.
-          - Victims of violence: vocal patterns indicative of trauma.
+          - Victims of violence: vocal patterns indicative of trauma, emotional distress related to abuse.
           
         <|start_header_id|>
           Sources examples
         <|end_header_id|>
           - Use "prenatal_care" for: signs of gestational anxiety, pregnancy-related concerns, prenatal checkups: \n
-          ex. output: {"classification": {"source": "prenatal_care"}} \n
+          ex. output: {"classification": prenatal_care} \n
           
           - Use "postpartum" for: signs of postpartum depression, recovery concerns, postnatal care: \n
-          ex. output:{"classification": {"source": "postpartum"}} \n
+          ex. output:{"classification": postpartum} \n
 
           - Use "violence_victim" for: vocal patterns indicative of trauma, emotional distress related to abuse: \n
-          ex. output:{"classification": {"source": "violence_victim"}} \n
+          ex. output:{"classification": violence_victim} \n
 
           - If the query doesn't relate to a source, omit it: \n
           ex. output:{"classification": null}
       `
     },
-    { role: "user", content: state.query }
+    { role: "user", content: userContentString }
   ]);
 
   logger.info('[debug: ClassifierAssistant] Resultado:', result);

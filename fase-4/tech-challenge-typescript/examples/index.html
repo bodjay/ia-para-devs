@@ -55,48 +55,79 @@
       pós-parto e violência doméstica.
       Ele utiliza uma abordagem baseada em agentes para fornecer informações e suporte personalizados.</p>
 
-    <form action="/" method="post">
+    <form>
       <div>
-        <input type="text" placeholder="Digite sua consulta aqui..." style="width: 300px;">
+        <input type="text" id="queryInput" placeholder="Digite sua consulta aqui..." style="width: 300px;">
       </div>
       <div>
-        <input type="file" name="file" style="margin-top: 10px;" placeholder="Selecione um arquivo para analise">
+        <input type="file" id="fileInput" name="file" style="margin-top: 10px;" accept=".mp3,.mp4,.wav,.avi,.mov,.flv,.webm" placeholder="Selecione um arquivo para análise (áudio ou vídeo)">
+        <small style="display: block; margin-top: 5px; color: #666;">Formatos aceitos: MP3, MP4, WAV, AVI, MOV, FLV, WebM</small>
       </div>
 
       <div>
         <button type="submit">Enviar</button>
+        <span id="loadingSpinner" style="display: none; margin-left: 10px;">
+          <strong>Processando...</strong>
+        </span>
       </div>
     </form>
+
+    <blockquote id="finalAnswer">
+      <!-- A resposta do assistente será exibida aqui -->
+    </blockquote>
   </main>
 </body>
 
 <script>
   const form = document.querySelector("form");
+  const queryInput = document.getElementById("queryInput");
+  const fileInput = document.getElementById("fileInput");
+  const loadingSpinner = document.getElementById("loadingSpinner");
+  const finalAnswerDiv = document.getElementById("finalAnswer");
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const input = form.querySelector("input");
-    const query = input.value;
+
+    const query = queryInput.value.trim();
+    const file = fileInput.files[0];
+
+    if (!query && !file) {
+      finalAnswerDiv.textContent = "Por favor, forneça uma consulta ou selecione um arquivo.";
+      return;
+    }
+
+    loadingSpinner.style.display = "inline";
+    finalAnswerDiv.textContent = "";
 
     try {
-      const response = await fetch("http://localhost:3000/query", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ query }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const formData = new FormData();
+      
+      if (query) {
+        formData.append("query", query);
+      }
+      
+      if (file) {
+        formData.append("file", file);
       }
 
-      const data = response.json();
+      const response = await fetch("http://localhost:3000/query", {
+        method: "POST",
+        body: formData,
+      }).then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      });
 
-      alert(`Resposta do assistente: ${data.answer}`);
+      const finalAnswer = response.finalAnswer || response.extraction || response.summary || "Sem resposta disponível.";
+      finalAnswerDiv.textContent = finalAnswer;
     } catch (error) {
       console.error("Error fetching assistant response:", error.message);
-      alert("Ocorreu um erro ao obter a resposta do assistente.");
+      finalAnswerDiv.textContent = `Ocorreu um erro ao obter a resposta do assistente: ${error.message}`;
+      finalAnswerDiv.style.color = "#d32f2f";
+    } finally {
+      loadingSpinner.style.display = "none";
     }
   });
 </script>

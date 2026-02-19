@@ -32,7 +32,7 @@ const llm = new ChatOllama({ model: "llama3.2:1b" });
 async function ReasoningAssistant(state: typeof RouterState.State) {
   logger.info('[debug: ReasoningAssistant] Organizando a resposta...')
 
-  if (state.results.length === 0) {
+  if (!state.results || state.results.length === 0) {
     return { finalAnswer: "Não encontrei nada relacionado..." };
   }
 
@@ -43,17 +43,17 @@ async function ReasoningAssistant(state: typeof RouterState.State) {
         <|start_header_id|>
           Role:
         <|end_header_id|>
-          You are an assistant who interprets the results writed in JSON 
+          You are an assistant who interprets the context 
+          write a final answer based on the results provided. \n
 
         <|start_header_id|>
           Context:
         <|end_header_id|>
-        ${JSON.stringify(state.results)} \n
+        ${state.results.map((r) => r.result).join("\n\n")} \n
 
         <|start_header_id|>
           Task:
         <|end_header_id|>\n 
-          - Relate the context results with the original query: ${state.query} \n    
           - Synthesize a final answer based on the context provided. \n
           - Focus on clarity and coherence. \n
 
@@ -61,15 +61,17 @@ async function ReasoningAssistant(state: typeof RouterState.State) {
           Constrains:
         <|end_header_id|>
           - You SHOULD NOT be conclusive. \n
+          - You SHOULD NOT repeat information from the context and original query. \n
           - You SHOULD NOT make assumptions outside the provided context. \n
-          - You SHOULD propagate uncertainties from the context to the final answer. \n
-          - If context has "References", include them in the final answer. \n
+          - You SHOULD propagate uncertainties from the context to the final answer. \n                    
+          - You SHOULD NOT mention these contrains. \n
       `
     },
-    { role: "user", content: state.results.join("\n\n") }
+    { role: "user", content: `Synthesize a final answer based on the context provided}` }
   ]);
 
   logger.info('[debug: ReasoningAssistant] Resultado:', synthesisResponse)
+
 
   return { finalAnswer: synthesisResponse.content };
 }

@@ -10,11 +10,14 @@ import { createAgent } from "langchain";
 
 import RouterState from "../entities/router.state.js";
 import logger from "../services/logger.js";
+import SentimentAnalyzer, { SentimentAnalyzerConfig } from "../tools/sentiment.analyzer.js";
 
 const llm = new ChatOllama({ model: "qwen2.5:0.5b" });
 
 const agent = createAgent({
   model: llm,
+  tools: [SentimentAnalyzer],  
+
 });
 
 /**
@@ -25,17 +28,15 @@ const agent = createAgent({
  * 
  * @example
  * ```ts
- * const response = await PrenatalCareAssistant({
+ * const response = await SentimentAssistant({
  *   query: "What are the signs of gestational anxiety?",
  * });
  * console.log(response);
  * // Output: { finalAnswer: "The signs of gestational anxiety include..." }
  * ```
  */
-async function PrenatalCareAssistant(state: typeof RouterState.State) {
-  logger.info('[debug: PrenatalCareAssistant] Processando consulta...')
-
-  const sentimentResult = state.results?.find((r) => r.source === "sentiment_analyzer");
+async function SentimentAssistant(state: typeof RouterState.State) {
+  logger.info('[debug: SentimentAssistant] Analizando sentimento...')
 
   const result = await agent.invoke(
     {
@@ -46,19 +47,25 @@ async function PrenatalCareAssistant(state: typeof RouterState.State) {
         <|start_header_id|>
           Role:
         <|end_header_id|>
-            You're a Prenatal Care Assistant that relates sentiment analysis result with query:, \n            
-            ${state.summary}. \n
-
-        <|start_header_id|>
-          Sentiment Analysis:
-        <|end_header_id|>
-            The sentiment of the query is: ${state.sentiment} \n
+            You're a Sentiment Assistant that analyze sentiment from query, \n
+            You MUST use SentmentAnalyzer tool to analyze the sentiment of the query. \n
+            You MUST use the provided tools to gather information and insights related to the query. \n            
 
         <|start_header_id|>
           Task:
         <|end_header_id|>\n 
-          - You MUST Identify signs of gestational anxiety, pregnancy-related concerns, and prenatal checkups. \n
-          - You MUST list the main concerns and signs related to prenatal care expressed in the query. \n
+            - Analyze the sentiment of the query. \n
+
+        <|start_header_id|>
+          Output:
+        <|end_header_id|>
+            - Provide a concise summary of the sentiment analysis results. \n
+
+        <|start_header_id|>
+          Available tools:
+        <|end_header_id|>
+            Here is a list of functions in JSON format that you can invoke. \n
+            ${JSON.stringify(toolsDefinitions)}\n 
 
         <|start_header_id|>
           Constrains:
@@ -66,17 +73,21 @@ async function PrenatalCareAssistant(state: typeof RouterState.State) {
           - You SHOULD NOT be conclusive. \n
           - You SHOULD NOT make assumptions outside the provided context. \n
           - You SHOULD propagate uncertainties from the context to the final answer. \n
+          - If there are references in the context, you MUST include them in the final answer. \n
       `
         },
-        { role: "user", content: ` ${sentimentResult?.result}` }
+        { role: "user", content: `Analyze sentiment of ${state.summary}` }
       ]
     }
   );
 
-  logger.info('[debug: PrenatalCareAssistant] Resultado:', result);
+  logger.info('[debug: SentimentAssistant] Resultado:', result);
 
-  return { finalAnswer: result.messages.at(-1)?.content };
+  return { results: [{ source: "sentiment_analyzer", result: result.messages.at(-1)?.content }] };
 }
 
+const toolsDefinitions = [
+  JSON.stringify(SentimentAnalyzerConfig),
+];
 
-export default PrenatalCareAssistant;
+export default SentimentAssistant;
