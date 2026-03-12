@@ -113,7 +113,7 @@ def prepare_dataset(images_dir: Path, dataset_dir: Path, seed: int = 42) -> dict
 
 # ── Training ──────────────────────────────────────────────────────────────────
 
-def train(epochs: int = 30, imgsz: int = 224, batch: int = 16, device: str = "cpu"):
+def train(epochs: int = 10, imgsz: int = 224, batch: int = 16, device: str = "cpu"):
     """
     Fine-tunes YOLOv8n-cls on the surgical instrument dataset.
 
