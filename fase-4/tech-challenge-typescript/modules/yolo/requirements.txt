@@ -1,0 +1,10 @@
+# ── API (FastAPI + server) ─────────────────────────────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9      # Form data parsing (POST /detect/frame)
+
+# ── Computer Vision ────────────────────────────────────────────────────────
+ultralytics>=8.2.0            # YOLOv8 (object detection + pose estimation)
+opencv-python>=4.9.0          # Frame decoding, drawing, VideoCapture (realtime.py)
+numpy>=1.24.0                 # Array ops (frame buffers, keypoint math)
+Pillow>=10.0.0                # Image I/O used internally by ultralytics

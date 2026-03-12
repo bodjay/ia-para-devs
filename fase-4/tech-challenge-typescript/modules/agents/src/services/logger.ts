@@ -19,6 +19,10 @@ function Logger(env: string = process.env.NODE_ENV || "development") {
     console.error(`[Logger:error] ${message}`, ...optionalParams);
   }
 
+  const warn = (message: string, ...optionalParams: any[]) => {
+    console.warn(`[Logger:warn] ${message}`, ...optionalParams);
+  }
+
   const enabled = () => {
     if (env === "development") return true;
   }
@@ -26,6 +30,7 @@ function Logger(env: string = process.env.NODE_ENV || "development") {
   return {
     info,
     error,
+    warn, // Alias para warn, já que não há distinção real em console.log
   };
 }
 

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import logger from './logger.js';
-import {SpeechClient} from '@google-cloud/speech';
+import { SpeechClient } from '@google-cloud/speech';
 
 const client = new SpeechClient();
 
@@ -31,5 +31,14 @@ export async function transcribe(audioPath: string, textOutputPath: string) {
   logger.info('[transcribe_audio_to_text] Transcrição concluída');
   return transcription;
 }
+
+// example
+transcribe('/Users/henrique/Workspace/ia-4-devs/fase-4/assets/audio.wav', '/Users/henrique/Workspace/ia-4-devs/fase-4/assets/output.txt')
+  .then(transcription => {
+    console.log('Transcrição:', transcription);
+  })
+  .catch(error => {
+    console.error('Erro na transcrição:', error);
+  });
 
 export default { transcribe };

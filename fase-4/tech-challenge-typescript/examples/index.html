@@ -1,135 +1,690 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <title>Assistente de Saúde da Mulher</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; color: #333; }
+    main { max-width: 820px; margin: auto; background: #fff; border-radius: 10px; padding: 28px 32px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+    h1 { color: #8e1a5e; margin-top: 0; }
+    p.subtitle { color: #555; margin-bottom: 20px; line-height: 1.5; }
 
-    h1 {
-      color: #333;
-    }
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 4px; border-bottom: 2px solid #e0e0e0; margin-bottom: 24px; flex-wrap: wrap; }
+    .tab-btn { padding: 10px 18px; border: none; background: none; cursor: pointer; font-size: 14px; font-weight: 600; color: #888; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color .2s, border-color .2s; white-space: nowrap; }
+    .tab-btn.active { color: #8e1a5e; border-bottom-color: #8e1a5e; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
 
-    form {
-      margin-top: 20px;
-    }
+    /* ── Forms ── */
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+    input[type="text"], select { width: 100%; padding: 10px 12px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; outline: none; transition: border-color .2s; }
+    input[type="text"]:focus, select:focus { border-color: #8e1a5e; }
+    .file-area { border: 2px dashed #ccc; border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; }
+    .file-area:hover { border-color: #8e1a5e; background: #fdf5fb; }
+    .file-area input { display: none; }
+    .file-area .file-label { font-size: 14px; color: #666; }
+    .file-area .file-name { margin-top: 8px; font-size: 13px; color: #8e1a5e; font-weight: 600; }
 
-    input[type="text"] {
-      padding: 10px;
-      font-size: 16px;
-    }
+    /* ── Webcam (tab 2) ── */
+    .webcam-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    #videoPreview { width: 100%; max-height: 260px; background: #111; border-radius: 8px; display: none; }
+    #recordedPreview { width: 100%; max-height: 260px; border-radius: 8px; display: none; margin-top: 10px; }
+    .rec-indicator { display: none; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #c62828; }
+    .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #c62828; animation: blink 1s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #007BFF;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
+    /* ── Buttons ── */
+    .btn { padding: 10px 22px; font-size: 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background .2s, opacity .2s; }
+    .btn-primary { background: #8e1a5e; color: #fff; }
+    .btn-primary:hover { background: #6d1448; }
+    .btn-primary:disabled { opacity: .5; cursor: default; }
+    .btn-secondary { background: #e8e8e8; color: #333; }
+    .btn-secondary:hover { background: #d5d5d5; }
+    .btn-secondary:disabled { opacity: .5; cursor: default; }
+    .btn-danger { background: #c62828; color: #fff; }
+    .btn-danger:hover { background: #a01e1e; }
 
-    button:hover {
-      background-color: #0056b3;
-    }
+    /* ── Source toggle ── */
+    .source-toggle { display: flex; border: 1px solid #ccc; border-radius: 6px; overflow: hidden; width: fit-content; margin-bottom: 16px; }
+    .source-toggle button { padding: 8px 20px; border: none; background: #f5f5f5; cursor: pointer; font-size: 14px; font-weight: 600; color: #666; transition: background .2s, color .2s; }
+    .source-toggle button.active { background: #8e1a5e; color: #fff; }
 
-    div {
-      margin: 12px 0;
-    }
+    /* ── Result boxes ── */
+    .result-box { margin-top: 20px; padding: 16px 20px; background: #fdf5fb; border-left: 4px solid #8e1a5e; border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.7; white-space: pre-wrap; display: none; }
+    .result-box.visible { display: block; }
+    .result-box.error { border-color: #c62828; background: #fff5f5; color: #c62828; }
+    .result-meta { font-size: 12px; color: #888; margin-bottom: 10px; }
+    .spinner { display: none; margin-left: 12px; font-size: 14px; color: #8e1a5e; font-weight: 600; }
 
-    main {
-      max-width: 600px;
-      margin: auto;
-    }
+    /* ── Badges ── */
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+    .badge-surgery  { background: #ffe0b2; color: #bf360c; }
+    .badge-consult  { background: #e8f5e9; color: #1b5e20; }
+    .badge-physio   { background: #e3f2fd; color: #0d47a1; }
+    .badge-violence { background: #fce4ec; color: #880e4f; }
+    .badge-unknown  { background: #f5f5f5; color: #555; }
+
+    /* ── Tab 3: Realtime Detection ── */
+    .rt-layout { display: grid; grid-template-columns: 1fr 280px; gap: 16px; }
+    @media (max-width: 640px) { .rt-layout { grid-template-columns: 1fr; } }
+
+    .rt-video-wrap { position: relative; background: #111; border-radius: 8px; overflow: hidden; aspect-ratio: 16/9; }
+    #rtVideo  { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #rtCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+    .rt-sidebar { display: flex; flex-direction: column; gap: 12px; }
+
+    .rt-controls { display: flex; flex-direction: column; gap: 8px; }
+    .rt-controls label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 2px; }
+    .rt-controls select { font-size: 13px; padding: 7px 10px; }
+
+    .rt-badge-wrap { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; }
+
+    .rt-stats { font-size: 13px; color: #555; line-height: 1.8; }
+    .rt-stats strong { color: #333; }
+
+    .rt-log { flex: 1; background: #1a1a2e; color: #a8d8a8; font-family: monospace; font-size: 11px; border-radius: 6px; padding: 10px; overflow-y: auto; max-height: 240px; min-height: 100px; }
+
+    .rt-fps { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,.6); color: #0f0; font-family: monospace; font-size: 12px; padding: 2px 8px; border-radius: 4px; pointer-events: none; }
+
+    .rt-context-badge { position: absolute; top: 8px; right: 8px; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; text-transform: uppercase; background: rgba(142,26,94,.85); color: #fff; pointer-events: none; }
+
+    .posture-pill { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .posture-neutral   { background: #e0e0e0; color: #444; }
+    .posture-defensive { background: #ffe0b2; color: #bf360c; }
+    .posture-distress  { background: #fce4ec; color: #880e4f; }
+    .posture-exercise  { background: #e8f5e9; color: #1b5e20; }
+
+    .alert-banner { display: none; background: #c62828; color: #fff; border-radius: 6px; padding: 10px 14px; font-size: 13px; font-weight: 600; margin-top: 8px; }
+    .alert-banner.visible { display: block; }
   </style>
 </head>
-
 <body>
-  <main>
-    <h1>Assistente de Saúde da Mulher</h1>
-    <p>Este é um exemplo de um assistente de saúde da mulher que pode ajudar em questões relacionadas ao pré-natal,
-      pós-parto e violência doméstica.
-      Ele utiliza uma abordagem baseada em agentes para fornecer informações e suporte personalizados.</p>
+<main>
+  <h1>Assistente de Saúde da Mulher</h1>
+  <p class="subtitle">Sistema multimodal especializado em saúde feminina. Analise textos, áudios, vídeos e detecte objetos/poses em tempo real.</p>
 
-    <form>
-      <div>
-        <input type="text" id="queryInput" placeholder="Digite sua consulta aqui..." style="width: 300px;">
-      </div>
-      <div>
-        <input type="file" id="fileInput" name="file" style="margin-top: 10px;" accept=".mp3,.mp4,.wav,.avi,.mov,.flv,.webm" placeholder="Selecione um arquivo para análise (áudio ou vídeo)">
-        <small style="display: block; margin-top: 5px; color: #666;">Formatos aceitos: MP3, MP4, WAV, AVI, MOV, FLV, WebM</small>
-      </div>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="tab-query">Consulta Texto / Áudio</button>
+    <button class="tab-btn" data-tab="tab-video">Análise de Vídeo Clínico</button>
+    <button class="tab-btn" data-tab="tab-realtime">⬤ Detecção em Tempo Real</button>
+  </div>
 
-      <div>
-        <button type="submit">Enviar</button>
-        <span id="loadingSpinner" style="display: none; margin-left: 10px;">
-          <strong>Processando...</strong>
-        </span>
+  <!-- ══ TAB 1: Text / Audio query ══════════════════════════════════════════ -->
+  <div id="tab-query" class="tab-panel active">
+    <form id="queryForm">
+      <div class="form-group">
+        <label for="queryInput">Consulta</label>
+        <input type="text" id="queryInput" placeholder="Digite sua consulta aqui...">
+      </div>
+      <div class="form-group">
+        <label>Arquivo de áudio ou vídeo (opcional)</label>
+        <div class="file-area" id="queryFileArea">
+          <input type="file" id="fileInput" accept=".mp3,.mp4,.wav,.avi,.mov,.flv,.webm">
+          <div class="file-label">Clique ou arraste um arquivo de áudio/vídeo<br><small style="color:#aaa">MP3, MP4, WAV, AVI, MOV, WebM</small></div>
+          <div class="file-name" id="queryFileName"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button type="submit" class="btn btn-primary">Enviar Consulta</button>
+        <span class="spinner" id="querySpinner">Processando...</span>
       </div>
     </form>
+    <div class="result-box" id="queryResult"></div>
+  </div>
 
-    <blockquote id="finalAnswer">
-      <!-- A resposta do assistente será exibida aqui -->
-    </blockquote>
-  </main>
-</body>
+  <!-- ══ TAB 2: Video clinical analysis ═══════════════════════════════════ -->
+  <div id="tab-video" class="tab-panel">
+    <div class="form-group">
+      <label>Tipo de análise clínica</label>
+      <select id="analysisType">
+        <option value="">Detectar automaticamente</option>
+        <option value="cirurgia">Cirurgia ginecológica</option>
+        <option value="consulta">Consulta médica (sinais não-verbais)</option>
+        <option value="fisioterapia">Fisioterapia pós-parto</option>
+        <option value="violência">Triagem de violência doméstica</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Fonte do vídeo</label>
+      <div class="source-toggle">
+        <button id="srcFile" class="active" type="button">Arquivo MP4</button>
+        <button id="srcWebcam" type="button">Webcam ao vivo</button>
+      </div>
+    </div>
+
+    <div id="fileSource">
+      <div class="file-area" id="videoFileArea">
+        <input type="file" id="videoFileInput" accept=".mp4,.webm,.mov,.avi">
+        <div class="file-label">Clique ou arraste um arquivo de vídeo<br><small style="color:#aaa">MP4, WebM, MOV, AVI</small></div>
+        <div class="file-name" id="videoFileName"></div>
+      </div>
+    </div>
+
+    <div id="webcamSource" style="display:none;">
+      <video id="videoPreview" autoplay muted playsinline></video>
+      <video id="recordedPreview" controls></video>
+      <div class="webcam-controls" style="margin-top:12px;">
+        <button id="btnStartCam" class="btn btn-secondary" type="button">Ligar Câmera</button>
+        <button id="btnRecord"   class="btn btn-danger"    type="button" disabled>Gravar</button>
+        <button id="btnStop"     class="btn btn-secondary" type="button" disabled>Parar</button>
+        <div class="rec-indicator" id="recIndicator"><div class="rec-dot"></div> GRAVANDO</div>
+      </div>
+      <div id="webcamInfo" style="font-size:13px;color:#888;">Ligue a câmera e grave o vídeo a ser analisado.</div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-top:20px;">
+      <button id="btnAnalyze" class="btn btn-primary" type="button">Analisar Vídeo</button>
+      <span class="spinner" id="videoSpinner">Analisando frames...</span>
+    </div>
+
+    <div class="result-box" id="videoResult">
+      <div class="result-meta" id="videoMeta"></div>
+      <div id="videoReportContent"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB 3: Realtime Detection ════════════════════════════════════════ -->
+  <div id="tab-realtime" class="tab-panel">
+
+    <div class="rt-layout">
+
+      <!-- Left: Video + canvas overlay -->
+      <div>
+        <div class="rt-video-wrap">
+          <video id="rtVideo" autoplay muted playsinline></video>
+          <canvas id="rtCanvas"></canvas>
+          <div class="rt-fps" id="rtFps">-- fps</div>
+          <div class="rt-context-badge" id="rtContextBadge" style="display:none;"></div>
+        </div>
+
+        <div class="alert-banner" id="rtAlert"></div>
+
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <button id="rtStart" class="btn btn-primary">Ligar Câmera</button>
+          <button id="rtStop"  class="btn btn-secondary" disabled>Parar Detecção</button>
+          <button id="rtClear" class="btn btn-secondary">Limpar Log</button>
+        </div>
+        <p style="font-size:12px;color:#999;margin-top:6px;">
+          Requer <strong>YOLOv8 API</strong> rodando em
+          <code>http://localhost:8000</code>
+          (<code>uvicorn main:app --port 8000</code> na pasta <code>modules/yolo/</code>).
+        </p>
+      </div>
+
+      <!-- Right: Sidebar -->
+      <div class="rt-sidebar">
+
+        <div class="rt-controls">
+          <label>Contexto clínico</label>
+          <select id="rtHint">
+            <option value="">Auto</option>
+            <option value="surgery">Cirurgia</option>
+            <option value="consultation">Consulta</option>
+            <option value="physiotherapy">Fisioterapia</option>
+            <option value="violence_screening">Triagem Violência</option>
+          </select>
+
+          <label style="margin-top:8px;">Intervalo de captura</label>
+          <select id="rtInterval">
+            <option value="150">~6 fps</option>
+            <option value="250" selected>~4 fps</option>
+            <option value="500">~2 fps</option>
+          </select>
+        </div>
+
+        <div>
+          <div style="font-size:12px;font-weight:600;color:#888;margin-bottom:4px;">POSTURAS DETECTADAS</div>
+          <div class="rt-badge-wrap" id="rtPostures">—</div>
+        </div>
+
+        <div class="rt-stats" id="rtStats">
+          <strong>Pessoas:</strong> —<br>
+          <strong>Objetos:</strong> —<br>
+          <strong>Contexto:</strong> —<br>
+          <strong>Frames:</strong> 0
+        </div>
+
+        <div>
+          <div style="font-size:12px;font-weight:600;color:#888;margin-bottom:4px;">LOG DE EVENTOS</div>
+          <div class="rt-log" id="rtLog"></div>
+        </div>
+
+      </div>
+    </div>
+  </div><!-- /tab-realtime -->
+
+</main>
 
 <script>
-  const form = document.querySelector("form");
-  const queryInput = document.getElementById("queryInput");
-  const fileInput = document.getElementById("fileInput");
-  const loadingSpinner = document.getElementById("loadingSpinner");
-  const finalAnswerDiv = document.getElementById("finalAnswer");
-
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const query = queryInput.value.trim();
-    const file = fileInput.files[0];
-
-    if (!query && !file) {
-      finalAnswerDiv.textContent = "Por favor, forneça uma consulta ou selecione um arquivo.";
-      return;
-    }
-
-    loadingSpinner.style.display = "inline";
-    finalAnswerDiv.textContent = "";
-
-    try {
-      const formData = new FormData();
-      
-      if (query) {
-        formData.append("query", query);
-      }
-      
-      if (file) {
-        formData.append("file", file);
-      }
-
-      const response = await fetch("http://localhost:3000/query", {
-        method: "POST",
-        body: formData,
-      }).then(res => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      });
-
-      const finalAnswer = response.finalAnswer || response.extraction || response.summary || "Sem resposta disponível.";
-      finalAnswerDiv.textContent = finalAnswer;
-    } catch (error) {
-      console.error("Error fetching assistant response:", error.message);
-      finalAnswerDiv.textContent = `Ocorreu um erro ao obter a resposta do assistente: ${error.message}`;
-      finalAnswerDiv.style.color = "#d32f2f";
-    } finally {
-      loadingSpinner.style.display = "none";
-    }
+// ─── Tab switching ────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab !== 'tab-realtime') stopRealtime();
   });
-</script>
+});
 
+// ─── Tab 1: Query ─────────────────────────────────────────────────────────────
+const queryForm     = document.getElementById('queryForm');
+const queryInput    = document.getElementById('queryInput');
+const fileInput     = document.getElementById('fileInput');
+const queryFileName = document.getElementById('queryFileName');
+const querySpinner  = document.getElementById('querySpinner');
+const queryResult   = document.getElementById('queryResult');
+document.getElementById('queryFileArea').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { queryFileName.textContent = fileInput.files[0]?.name ?? ''; });
+
+queryForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const query = queryInput.value.trim(), file = fileInput.files[0];
+  if (!query && !file) { showResult(queryResult, 'Por favor, forneça uma consulta ou selecione um arquivo.', true); return; }
+  querySpinner.style.display = 'inline';
+  queryResult.classList.remove('visible','error');
+  try {
+    const fd = new FormData();
+    if (query) fd.append('query', query);
+    if (file)  fd.append('file', file);
+    const res = await fetch('http://localhost:3000/query', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    showResult(queryResult, data.finalAnswer || data.extraction || data.summary || 'Sem resposta.');
+  } catch (err) { showResult(queryResult, 'Erro: ' + err.message, true); }
+  finally { querySpinner.style.display = 'none'; }
+});
+
+// ─── Tab 2: Video analysis ────────────────────────────────────────────────────
+const analysisType       = document.getElementById('analysisType');
+const srcFileBtn         = document.getElementById('srcFile');
+const srcWebcamBtn       = document.getElementById('srcWebcam');
+const fileSource         = document.getElementById('fileSource');
+const webcamSource       = document.getElementById('webcamSource');
+const videoFileInput     = document.getElementById('videoFileInput');
+const videoFileName      = document.getElementById('videoFileName');
+const videoFileArea      = document.getElementById('videoFileArea');
+const btnAnalyze         = document.getElementById('btnAnalyze');
+const videoSpinner       = document.getElementById('videoSpinner');
+const videoResult        = document.getElementById('videoResult');
+const videoMeta          = document.getElementById('videoMeta');
+const videoReportContent = document.getElementById('videoReportContent');
+const videoPreview       = document.getElementById('videoPreview');
+const recordedPreview    = document.getElementById('recordedPreview');
+const btnStartCam        = document.getElementById('btnStartCam');
+const btnRecord          = document.getElementById('btnRecord');
+const btnStop            = document.getElementById('btnStop');
+const recIndicator       = document.getElementById('recIndicator');
+const webcamInfo         = document.getElementById('webcamInfo');
+
+let t2Stream = null, t2Recorder = null, t2Chunks = [], t2Blob = null, videoMode = 'file';
+
+srcFileBtn.addEventListener('click', () => {
+  videoMode = 'file'; srcFileBtn.classList.add('active'); srcWebcamBtn.classList.remove('active');
+  fileSource.style.display = 'block'; webcamSource.style.display = 'none'; stopCamT2();
+});
+srcWebcamBtn.addEventListener('click', () => {
+  videoMode = 'webcam'; srcWebcamBtn.classList.add('active'); srcFileBtn.classList.remove('active');
+  webcamSource.style.display = 'block'; fileSource.style.display = 'none';
+});
+videoFileArea.addEventListener('click', () => videoFileInput.click());
+videoFileInput.addEventListener('change', () => { videoFileName.textContent = videoFileInput.files[0]?.name ?? ''; t2Blob = null; });
+
+btnStartCam.addEventListener('click', async () => {
+  try {
+    t2Stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    videoPreview.srcObject = t2Stream; videoPreview.style.display = 'block';
+    btnRecord.disabled = false; btnStartCam.disabled = true;
+    webcamInfo.textContent = 'Câmera ligada. Clique em Gravar para iniciar.';
+  } catch (err) { webcamInfo.textContent = 'Erro: ' + err.message; }
+});
+btnRecord.addEventListener('click', () => {
+  t2Chunks = []; t2Blob = null; recordedPreview.style.display = 'none';
+  const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+  t2Recorder = new MediaRecorder(t2Stream, { mimeType: mime });
+  t2Recorder.ondataavailable = e => { if (e.data?.size) t2Chunks.push(e.data); };
+  t2Recorder.onstop = () => {
+    t2Blob = new Blob(t2Chunks, { type: mime });
+    recordedPreview.src = URL.createObjectURL(t2Blob);
+    recordedPreview.style.display = 'block'; recIndicator.style.display = 'none';
+    webcamInfo.textContent = 'Gravação concluída (' + (t2Blob.size/1024).toFixed(0) + ' KB). Clique em Analisar.';
+  };
+  t2Recorder.start(100); btnRecord.disabled = true; btnStop.disabled = false;
+  recIndicator.style.display = 'flex'; webcamInfo.textContent = 'Gravando...';
+});
+btnStop.addEventListener('click', () => {
+  if (t2Recorder?.state !== 'inactive') t2Recorder.stop();
+  btnStop.disabled = true; btnRecord.disabled = false;
+});
+function stopCamT2() {
+  t2Stream?.getTracks().forEach(t => t.stop()); t2Stream = null;
+  if (t2Recorder?.state !== 'inactive') t2Recorder?.stop();
+  videoPreview.style.display = 'none'; videoPreview.srcObject = null;
+  recIndicator.style.display = 'none';
+  btnStartCam.disabled = false; btnRecord.disabled = true; btnStop.disabled = true;
+}
+
+btnAnalyze.addEventListener('click', async () => {
+  let file = null;
+  if (videoMode === 'file') {
+    file = videoFileInput.files[0];
+    if (!file) { showVideoResult('Selecione um arquivo.', null, true); return; }
+  } else {
+    if (!t2Blob) { showVideoResult('Grave um vídeo antes de analisar.', null, true); return; }
+    file = new File([t2Blob], 'webcam-' + Date.now() + '.webm', { type: t2Blob.type });
+  }
+  videoSpinner.style.display = 'inline'; videoResult.classList.remove('visible','error'); btnAnalyze.disabled = true;
+  try {
+    const fd = new FormData(); fd.append('file', file, file.name);
+    if (analysisType.value) fd.append('analysisType', analysisType.value);
+    const res = await fetch('http://localhost:3000/analyze-video', { method: 'POST', body: fd });
+    if (!res.ok) { const e = await res.json().catch(()=>({error:'HTTP '+res.status})); throw new Error(e.error); }
+    showVideoResult((await res.json()).finalReport, await res.clone().json().catch(()=>null));
+  } catch (err) { showVideoResult('Erro: ' + err.message, null, true); }
+  finally { videoSpinner.style.display = 'none'; btnAnalyze.disabled = false; }
+});
+
+// ─── Tab 3: Realtime YOLOv8 Detection ────────────────────────────────────────
+const rtVideo      = document.getElementById('rtVideo');
+const rtCanvas     = document.getElementById('rtCanvas');
+const rtCtx        = rtCanvas.getContext('2d');
+const rtFps        = document.getElementById('rtFps');
+const rtContextBadge = document.getElementById('rtContextBadge');
+const rtAlert      = document.getElementById('rtAlert');
+const rtStart      = document.getElementById('rtStart');
+const rtStop       = document.getElementById('rtStop');
+const rtClear      = document.getElementById('rtClear');
+const rtHint       = document.getElementById('rtHint');
+const rtInterval   = document.getElementById('rtInterval');
+const rtPostures   = document.getElementById('rtPostures');
+const rtStats      = document.getElementById('rtStats');
+const rtLog        = document.getElementById('rtLog');
+
+const YOLO_API     = 'http://localhost:8000';
+
+// Colors per class (CSS)
+const CLASS_COLORS = {
+  person:  '#32dc32',
+  knife:   '#f44336',
+  scissors:'#ff5722',
+  'sports ball': '#ff9800',
+  chair:   '#9c27b0',
+  bed:     '#673ab7',
+  couch:   '#9e9e9e',
+};
+const DEFAULT_BOX_COLOR = '#ffeb3b';
+
+const POSTURE_STYLES = {
+  defensive: { bg: '#ff9800', text: '#000' },
+  distress:  { bg: '#f44336', text: '#fff' },
+  exercise:  { bg: '#4caf50', text: '#fff' },
+  neutral:   { bg: '#9e9e9e', text: '#fff' },
+};
+
+const SKELETON_EDGES = [
+  [0,1],[0,2],[1,3],[2,4],[5,6],[5,7],[7,9],[6,8],[8,10],
+  [5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16],
+];
+
+let rtStream = null, rtLoopId = null, rtRunning = false;
+let frameCount = 0, lastFpsTime = performance.now(), currentFps = 0;
+let totalFramesSent = 0;
+
+// Offscreen canvas for frame capture
+const offCanvas = document.createElement('canvas');
+const offCtx    = offCanvas.getContext('2d');
+
+function rtLog_push(msg) {
+  const ts   = new Date().toLocaleTimeString('pt-BR', { hour12: false });
+  const line = document.createElement('div');
+  line.textContent = `[${ts}] ${msg}`;
+  rtLog.appendChild(line);
+  rtLog.scrollTop = rtLog.scrollHeight;
+  if (rtLog.children.length > 200) rtLog.removeChild(rtLog.firstChild);
+}
+
+function drawBox(ctx, x1, y1, x2, y2, label, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 2;
+  ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+  ctx.font = 'bold 12px Arial';
+  const tw  = ctx.measureText(label).width;
+  const bh  = 18;
+  const by  = y1 > bh ? y1 - bh : y1;
+  ctx.fillStyle = color;
+  ctx.fillRect(x1, by, tw + 8, bh);
+  ctx.fillStyle = '#000';
+  ctx.fillText(label, x1 + 4, by + 13);
+}
+
+function drawSkeleton(ctx, keypoints, sw, sh, vw, vh) {
+  const scaleX = sw / vw, scaleY = sh / vh;
+
+  // Bones
+  ctx.strokeStyle = '#ffc107';
+  ctx.lineWidth   = 2;
+  for (const [a, b] of SKELETON_EDGES) {
+    if (a >= keypoints.length || b >= keypoints.length) continue;
+    const ka = keypoints[a], kb = keypoints[b];
+    if (ka.confidence > 0.3 && kb.confidence > 0.3 && (ka.x > 0 || ka.y > 0) && (kb.x > 0 || kb.y > 0)) {
+      ctx.beginPath();
+      ctx.moveTo(ka.x * scaleX, ka.y * scaleY);
+      ctx.lineTo(kb.x * scaleX, kb.y * scaleY);
+      ctx.stroke();
+    }
+  }
+
+  // Joints
+  for (const kp of keypoints) {
+    if (kp.confidence > 0.3 && (kp.x > 0 || kp.y > 0)) {
+      ctx.beginPath();
+      ctx.arc(kp.x * scaleX, kp.y * scaleY, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#00e5ff';
+      ctx.fill();
+    }
+  }
+}
+
+function drawPostureBadge(ctx, posture, x, y) {
+  const style = POSTURE_STYLES[posture] ?? POSTURE_STYLES.neutral;
+  const label = posture.toUpperCase();
+  ctx.font    = 'bold 11px Arial';
+  const tw    = ctx.measureText(label).width;
+  ctx.fillStyle = style.bg;
+  ctx.beginPath();
+  ctx.roundRect(x, y, tw + 10, 20, 4);
+  ctx.fill();
+  ctx.fillStyle = style.text;
+  ctx.fillText(label, x + 5, y + 14);
+}
+
+async function captureAndDetect() {
+  if (!rtRunning || !rtVideo.videoWidth) return;
+
+  const vw = rtVideo.videoWidth, vh = rtVideo.videoHeight;
+  offCanvas.width  = Math.min(vw, 640);
+  offCanvas.height = Math.round(vh * offCanvas.width / vw);
+
+  offCtx.drawImage(rtVideo, 0, 0, offCanvas.width, offCanvas.height);
+  const frameB64 = offCanvas.toDataURL('image/jpeg', 0.75).split(',')[1];
+
+  const fd = new FormData();
+  fd.append('frame_b64', frameB64);
+  fd.append('draw_overlay', 'false'); // we draw client-side
+  if (rtHint.value) fd.append('analysis_type', rtHint.value);
+
+  let data;
+  try {
+    const res = await fetch(YOLO_API + '/detect/frame', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    data = await res.json();
+  } catch (err) {
+    rtLog_push('⚠ API: ' + err.message);
+    return;
+  }
+
+  totalFramesSent++;
+
+  // ── FPS counter ──────────────────────────────────────────────────────────
+  frameCount++;
+  const now = performance.now();
+  if (now - lastFpsTime >= 1000) {
+    currentFps = Math.round(frameCount * 1000 / (now - lastFpsTime));
+    rtFps.textContent = currentFps + ' fps';
+    frameCount = 0; lastFpsTime = now;
+  }
+
+  // ── Draw on overlay canvas ───────────────────────────────────────────────
+  const sw = rtCanvas.offsetWidth || rtVideo.offsetWidth || 640;
+  const sh = rtCanvas.offsetHeight || rtVideo.offsetHeight || 360;
+  rtCanvas.width  = sw;
+  rtCanvas.height = sh;
+  const scaleX = sw / vw, scaleY = sh / vh;
+
+  rtCtx.clearRect(0, 0, sw, sh);
+
+  // Bounding boxes
+  for (const d of data.detections ?? []) {
+    const color = CLASS_COLORS[d.class_name] ?? DEFAULT_BOX_COLOR;
+    const label = d.class_name + ' ' + Math.round(d.confidence * 100) + '%';
+    drawBox(rtCtx, d.x1 * scaleX, d.y1 * scaleY, d.x2 * scaleX, d.y2 * scaleY, label, color);
+  }
+
+  // Pose
+  for (const pose of data.poses ?? []) {
+    drawSkeleton(rtCtx, pose.keypoints, sw, sh, vw, vh);
+
+    // Posture badge near first visible keypoint
+    for (const kp of pose.keypoints) {
+      if (kp.confidence > 0.3 && kp.x > 0) {
+        drawPostureBadge(rtCtx, pose.posture_label, kp.x * scaleX, Math.max(kp.y * scaleY - 30, 4));
+        break;
+      }
+    }
+  }
+
+  // ── Context badge ────────────────────────────────────────────────────────
+  const ctx = data.clinical_context ?? '';
+  const ctxLabels = { surgery:'Cirurgia', consultation:'Consulta', physiotherapy:'Fisioterapia', violence_screening:'Triagem Violência' };
+  if (ctx) {
+    rtContextBadge.textContent = ctxLabels[ctx] ?? ctx;
+    rtContextBadge.style.display = 'block';
+  }
+
+  // ── Sidebar stats ────────────────────────────────────────────────────────
+  const postureList = (data.poses ?? []).map(p => p.posture_label);
+  const objNames    = [...new Set((data.detections ?? []).filter(d => d.class_name !== 'person').map(d => d.class_name))];
+
+  rtPostures.innerHTML = postureList.length
+    ? postureList.map(p => `<span class="posture-pill posture-${p}">${p}</span>`).join('')
+    : '—';
+
+  rtStats.innerHTML =
+    `<strong>Pessoas:</strong> ${data.person_count ?? 0}<br>` +
+    `<strong>Objetos:</strong> ${objNames.join(', ') || '—'}<br>` +
+    `<strong>Contexto:</strong> ${ctxLabels[ctx] ?? ctx || '—'}<br>` +
+    `<strong>Frames:</strong> ${totalFramesSent}`;
+
+  // ── Alerts ───────────────────────────────────────────────────────────────
+  const hasDistress   = postureList.includes('distress');
+  const hasSurgical   = (data.detections ?? []).some(d => ['knife','scissors'].includes(d.class_name));
+  const hasDefensive  = postureList.includes('defensive');
+
+  if (hasDistress || (ctx === 'violence_screening' && hasDefensive)) {
+    showAlert('⚠ Sinal de angústia/postura defensiva detectado — avaliação clínica recomendada.');
+    rtLog_push('🚨 ALERTA: postura de angústia detectada');
+  } else if (hasSurgical) {
+    showAlert('⚕ Instrumento cirúrgico identificado — monitorando campo operatório.');
+    rtLog_push('🔪 Instrumento cirúrgico: ' + (data.detections??[]).filter(d=>['knife','scissors'].includes(d.class_name)).map(d=>d.class_name).join(', '));
+  } else {
+    hideAlert();
+  }
+
+  // Log interesting events only
+  if (objNames.length > 0) rtLog_push('📦 ' + objNames.join(', ') + ' detectado(s)');
+}
+
+function showAlert(msg) { rtAlert.textContent = msg; rtAlert.classList.add('visible'); }
+function hideAlert()    { rtAlert.classList.remove('visible'); }
+
+async function startRealtime() {
+  try {
+    rtStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    rtVideo.srcObject = rtStream;
+    await new Promise(r => rtVideo.addEventListener('loadedmetadata', r, { once: true }));
+    rtVideo.play();
+
+    rtRunning = true;
+    rtStart.disabled = true; rtStop.disabled = false;
+    rtLog_push('▶ Câmera iniciada. Conectando à API YOLO em ' + YOLO_API + '...');
+
+    // Check API health
+    try {
+      const h = await fetch(YOLO_API + '/health');
+      const hd = await h.json();
+      rtLog_push('✅ API YOLOv8 conectada: ' + JSON.stringify(hd));
+    } catch (_) {
+      rtLog_push('⚠ API YOLOv8 não encontrada em ' + YOLO_API + ' — inicie o servidor Python.');
+    }
+
+    const interval = parseInt(rtInterval.value, 10);
+    rtLoopId = setInterval(captureAndDetect, interval);
+  } catch (err) {
+    rtLog_push('❌ Erro ao acessar câmera: ' + err.message);
+  }
+}
+
+function stopRealtime() {
+  rtRunning = false;
+  clearInterval(rtLoopId); rtLoopId = null;
+  rtStream?.getTracks().forEach(t => t.stop()); rtStream = null;
+  rtCtx.clearRect(0, 0, rtCanvas.width, rtCanvas.height);
+  rtContextBadge.style.display = 'none';
+  hideAlert();
+  rtStart.disabled = false; rtStop.disabled = true;
+  rtFps.textContent = '-- fps';
+  if (rtRunning === false && rtLog) rtLog_push('⏹ Detecção encerrada.');
+}
+
+rtStart.addEventListener('click', startRealtime);
+rtStop.addEventListener('click',  stopRealtime);
+rtClear.addEventListener('click', () => { rtLog.innerHTML = ''; });
+
+// Re-apply interval without restart
+rtInterval.addEventListener('change', () => {
+  if (rtRunning) {
+    clearInterval(rtLoopId);
+    rtLoopId = setInterval(captureAndDetect, parseInt(rtInterval.value, 10));
+    rtLog_push('⚙ Intervalo ajustado: ' + rtInterval.value + 'ms');
+  }
+});
+
+// ─── Shared helpers ───────────────────────────────────────────────────────────
+function showResult(container, text, isError = false) {
+  container.textContent = text; container.classList.add('visible'); container.classList.toggle('error', isError);
+}
+
+function showVideoResult(report, data, isError = false) {
+  const badgeMap = {
+    surgery:            ['badge-surgery',  'Cirurgia'],
+    consultation_video: ['badge-consult',  'Consulta'],
+    physiotherapy:      ['badge-physio',   'Fisioterapia'],
+    violence_screening: ['badge-violence', 'Triagem de Violência'],
+    unknown:            ['badge-unknown',  'Indefinido'],
+  };
+  if (data?.videoClassification) {
+    const [cls, label] = badgeMap[data.videoClassification] ?? badgeMap.unknown;
+    videoMeta.innerHTML = `<span class="badge ${cls}">${label}</span>&nbsp;&nbsp;${data.framesAnalyzed ?? 0} frames`;
+  } else { videoMeta.innerHTML = ''; }
+  videoReportContent.textContent = report || 'Sem relatório.';
+  videoResult.classList.add('visible'); videoResult.classList.toggle('error', isError);
+}
+</script>
+</body>
 </html>

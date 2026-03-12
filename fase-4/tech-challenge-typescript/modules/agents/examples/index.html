@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assistente de Saúde da Mulher</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; color: #333; }
+    main { max-width: 760px; margin: auto; background: #fff; border-radius: 10px; padding: 28px 32px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+    h1 { color: #8e1a5e; margin-top: 0; }
+    p.subtitle { color: #555; margin-bottom: 24px; line-height: 1.5; }
+    .tabs { display: flex; gap: 4px; border-bottom: 2px solid #e0e0e0; margin-bottom: 24px; }
+    .tab-btn { padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 14px; font-weight: 600; color: #888; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color .2s, border-color .2s; }
+    .tab-btn.active { color: #8e1a5e; border-bottom-color: #8e1a5e; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+    input[type="text"], select { width: 100%; padding: 10px 12px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; outline: none; transition: border-color .2s; }
+    input[type="text"]:focus, select:focus { border-color: #8e1a5e; }
+    .file-area { border: 2px dashed #ccc; border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; }
+    .file-area:hover { border-color: #8e1a5e; background: #fdf5fb; }
+    .file-area input { display: none; }
+    .file-area .file-label { font-size: 14px; color: #666; }
+    .file-area .file-name { margin-top: 8px; font-size: 13px; color: #8e1a5e; font-weight: 600; }
+    .webcam-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+    #videoPreview { width: 100%; max-height: 260px; background: #111; border-radius: 8px; display: none; }
+    #recordedPreview { width: 100%; max-height: 260px; border-radius: 8px; display: none; margin-top: 10px; }
+    .rec-indicator { display: none; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #c62828; }
+    .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #c62828; animation: blink 1s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    .btn { padding: 10px 22px; font-size: 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background .2s, opacity .2s; }
+    .btn-primary { background: #8e1a5e; color: #fff; }
+    .btn-primary:hover { background: #6d1448; }
+    .btn-primary:disabled { opacity: .5; cursor: default; }
+    .btn-secondary { background: #e8e8e8; color: #333; }
+    .btn-secondary:hover { background: #d5d5d5; }
+    .btn-secondary:disabled { opacity: .5; cursor: default; }
+    .btn-danger { background: #c62828; color: #fff; }
+    .btn-danger:hover { background: #a01e1e; }
+    .source-toggle { display: flex; border: 1px solid #ccc; border-radius: 6px; overflow: hidden; width: fit-content; margin-bottom: 16px; }
+    .source-toggle button { padding: 8px 20px; border: none; background: #f5f5f5; cursor: pointer; font-size: 14px; font-weight: 600; color: #666; transition: background .2s, color .2s; }
+    .source-toggle button.active { background: #8e1a5e; color: #fff; }
+    .result-box { margin-top: 20px; padding: 16px 20px; background: #fdf5fb; border-left: 4px solid #8e1a5e; border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.7; white-space: pre-wrap; display: none; }
+    .result-box.visible { display: block; }
+    .result-box.error { border-color: #c62828; background: #fff5f5; color: #c62828; }
+    .result-meta { font-size: 12px; color: #888; margin-bottom: 10px; }
+    .spinner { display: none; margin-left: 12px; font-size: 14px; color: #8e1a5e; font-weight: 600; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+    .badge-surgery  { background: #ffe0b2; color: #bf360c; }
+    .badge-consult  { background: #e8f5e9; color: #1b5e20; }
+    .badge-physio   { background: #e3f2fd; color: #0d47a1; }
+    .badge-violence { background: #fce4ec; color: #880e4f; }
+    .badge-unknown  { background: #f5f5f5; color: #555; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Assistente de Saúde da Mulher</h1>
+    <p class="subtitle">
+      Sistema multimodal especializado em saúde feminina. Analise textos, áudios e vídeos clínicos
+      para apoio em pré-natal, pós-parto, fisioterapia, triagem de violência e cirurgias ginecológicas.
+    </p>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tab-query">Consulta Texto / Áudio</button>
+      <button class="tab-btn" data-tab="tab-video">Análise de Vídeo Clínico</button>
+    </div>
+
+    <!-- Tab 1 -->
+    <div id="tab-query" class="tab-panel active">
+      <form id="queryForm">
+        <div class="form-group">
+          <label for="queryInput">Consulta</label>
+          <input type="text" id="queryInput" placeholder="Digite sua consulta aqui...">
+        </div>
+        <div class="form-group">
+          <label>Arquivo de áudio ou vídeo (opcional)</label>
+          <div class="file-area" id="queryFileArea">
+            <input type="file" id="fileInput" accept=".mp3,.mp4,.wav,.avi,.mov,.flv,.webm">
+            <div class="file-label">Clique ou arraste um arquivo de áudio/vídeo<br>
+              <small style="color:#aaa">MP3, MP4, WAV, AVI, MOV, WebM</small></div>
+            <div class="file-name" id="queryFileName"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button type="submit" class="btn btn-primary">Enviar Consulta</button>
+          <span class="spinner" id="querySpinner">Processando...</span>
+        </div>
+      </form>
+      <div class="result-box" id="queryResult"></div>
+    </div>
+
+    <!-- Tab 2 -->
+    <div id="tab-video" class="tab-panel">
+      <div class="form-group">
+        <label>Tipo de análise clínica</label>
+        <select id="analysisType">
+          <option value="">Detectar automaticamente</option>
+          <option value="cirurgia">Cirurgia ginecológica</option>
+          <option value="consulta">Consulta médica (sinais não-verbais)</option>
+          <option value="fisioterapia">Fisioterapia pós-parto</option>
+          <option value="violência">Triagem de violência doméstica</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Fonte do vídeo</label>
+        <div class="source-toggle">
+          <button id="srcFile" class="active" type="button">Arquivo MP4</button>
+          <button id="srcWebcam" type="button">Webcam ao vivo</button>
+        </div>
+      </div>
+
+      <div id="fileSource">
+        <div class="file-area" id="videoFileArea">
+          <input type="file" id="videoFileInput" accept=".mp4,.webm,.mov,.avi">
+          <div class="file-label">Clique ou arraste um arquivo de vídeo<br>
+            <small style="color:#aaa">MP4, WebM, MOV, AVI</small></div>
+          <div class="file-name" id="videoFileName"></div>
+        </div>
+      </div>
+
+      <div id="webcamSource" style="display:none;">
+        <video id="videoPreview" autoplay muted playsinline></video>
+        <video id="recordedPreview" controls></video>
+        <div class="webcam-controls" style="margin-top:12px;">
+          <button id="btnStartCam" class="btn btn-secondary" type="button">Ligar Câmera</button>
+          <button id="btnRecord"   class="btn btn-danger"    type="button" disabled>Gravar</button>
+          <button id="btnStop"     class="btn btn-secondary" type="button" disabled>Parar</button>
+          <div class="rec-indicator" id="recIndicator"><div class="rec-dot"></div> GRAVANDO</div>
+        </div>
+        <div id="webcamInfo" style="font-size:13px;color:#888;">Ligue a câmera e grave o vídeo a ser analisado.</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-top:20px;">
+        <button id="btnAnalyze" class="btn btn-primary" type="button">Analisar Vídeo</button>
+        <span class="spinner" id="videoSpinner">Analisando frames...</span>
+      </div>
+
+      <div class="result-box" id="videoResult">
+        <div class="result-meta" id="videoMeta"></div>
+        <div id="videoReportContent"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Tab 1
+    const queryForm     = document.getElementById('queryForm');
+    const queryInput    = document.getElementById('queryInput');
+    const fileInput     = document.getElementById('fileInput');
+    const queryFileName = document.getElementById('queryFileName');
+    const querySpinner  = document.getElementById('querySpinner');
+    const queryResult   = document.getElementById('queryResult');
+    const queryFileArea = document.getElementById('queryFileArea');
+
+    queryFileArea.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => { queryFileName.textContent = fileInput.files[0]?.name ?? ''; });
+
+    queryForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const query = queryInput.value.trim();
+      const file  = fileInput.files[0];
+      if (!query && !file) { showResult(queryResult, 'Por favor, forneça uma consulta ou selecione um arquivo.', true); return; }
+      querySpinner.style.display = 'inline';
+      queryResult.classList.remove('visible', 'error');
+      try {
+        const fd = new FormData();
+        if (query) fd.append('query', query);
+        if (file)  fd.append('file', file);
+        const res = await fetch('http://localhost:3000/query', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        showResult(queryResult, data.finalAnswer || data.extraction || data.summary || 'Sem resposta disponível.');
+      } catch (err) {
+        showResult(queryResult, 'Erro: ' + err.message, true);
+      } finally {
+        querySpinner.style.display = 'none';
+      }
+    });
+
+    // Tab 2
+    const analysisType       = document.getElementById('analysisType');
+    const srcFileBtn         = document.getElementById('srcFile');
+    const srcWebcamBtn       = document.getElementById('srcWebcam');
+    const fileSource         = document.getElementById('fileSource');
+    const webcamSource       = document.getElementById('webcamSource');
+    const videoFileInput     = document.getElementById('videoFileInput');
+    const videoFileName      = document.getElementById('videoFileName');
+    const videoFileArea      = document.getElementById('videoFileArea');
+    const btnAnalyze         = document.getElementById('btnAnalyze');
+    const videoSpinner       = document.getElementById('videoSpinner');
+    const videoResult        = document.getElementById('videoResult');
+    const videoMeta          = document.getElementById('videoMeta');
+    const videoReportContent = document.getElementById('videoReportContent');
+    const videoPreview       = document.getElementById('videoPreview');
+    const recordedPreview    = document.getElementById('recordedPreview');
+    const btnStartCam        = document.getElementById('btnStartCam');
+    const btnRecord          = document.getElementById('btnRecord');
+    const btnStop            = document.getElementById('btnStop');
+    const recIndicator       = document.getElementById('recIndicator');
+    const webcamInfo         = document.getElementById('webcamInfo');
+
+    let mediaStream = null, mediaRecorder = null, recordedChunks = [], recordedBlob = null, videoMode = 'file';
+
+    srcFileBtn.addEventListener('click', () => {
+      videoMode = 'file';
+      srcFileBtn.classList.add('active'); srcWebcamBtn.classList.remove('active');
+      fileSource.style.display = 'block'; webcamSource.style.display = 'none';
+      stopCamera();
+    });
+
+    srcWebcamBtn.addEventListener('click', () => {
+      videoMode = 'webcam';
+      srcWebcamBtn.classList.add('active'); srcFileBtn.classList.remove('active');
+      webcamSource.style.display = 'block'; fileSource.style.display = 'none';
+    });
+
+    videoFileArea.addEventListener('click', () => videoFileInput.click());
+    videoFileInput.addEventListener('change', () => { videoFileName.textContent = videoFileInput.files[0]?.name ?? ''; recordedBlob = null; });
+
+    btnStartCam.addEventListener('click', async () => {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        videoPreview.srcObject = mediaStream;
+        videoPreview.style.display = 'block';
+        btnRecord.disabled = false; btnStartCam.disabled = true;
+        webcamInfo.textContent = 'Câmera ligada. Clique em Gravar para iniciar.';
+      } catch (err) { webcamInfo.textContent = 'Erro ao acessar câmera: ' + err.message; }
+    });
+
+    btnRecord.addEventListener('click', () => {
+      recordedChunks = []; recordedBlob = null;
+      recordedPreview.style.display = 'none';
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+      mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
+      mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        recordedBlob = new Blob(recordedChunks, { type: mimeType });
+        recordedPreview.src = URL.createObjectURL(recordedBlob);
+        recordedPreview.style.display = 'block';
+        recIndicator.style.display = 'none';
+        webcamInfo.textContent = 'Gravação concluída (' + (recordedBlob.size / 1024).toFixed(0) + ' KB). Clique em Analisar Vídeo.';
+      };
+      mediaRecorder.start(100);
+      btnRecord.disabled = true; btnStop.disabled = false;
+      recIndicator.style.display = 'flex';
+      webcamInfo.textContent = 'Gravando... Clique em Parar quando terminar.';
+    });
+
+    btnStop.addEventListener('click', () => {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+      btnStop.disabled = true; btnRecord.disabled = false;
+    });
+
+    function stopCamera() {
+      if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+      videoPreview.style.display = 'none'; videoPreview.srcObject = null;
+      recIndicator.style.display = 'none';
+      btnStartCam.disabled = false; btnRecord.disabled = true; btnStop.disabled = true;
+    }
+
+    btnAnalyze.addEventListener('click', async () => {
+      let fileToSend = null;
+      if (videoMode === 'file') {
+        fileToSend = videoFileInput.files[0];
+        if (!fileToSend) { showVideoResult('Selecione um arquivo de vídeo antes de analisar.', null, true); return; }
+      } else {
+        if (!recordedBlob) { showVideoResult('Grave um vídeo pela webcam antes de analisar.', null, true); return; }
+        fileToSend = new File([recordedBlob], 'webcam-' + Date.now() + '.webm', { type: recordedBlob.type });
+      }
+      videoSpinner.style.display = 'inline';
+      videoResult.classList.remove('visible', 'error');
+      btnAnalyze.disabled = true;
+      try {
+        const fd = new FormData();
+        fd.append('file', fileToSend, fileToSend.name);
+        if (analysisType.value) fd.append('analysisType', analysisType.value);
+        const res = await fetch('http://localhost:3000/analyze-video', { method: 'POST', body: fd });
+        if (!res.ok) { const e = await res.json().catch(() => ({ error: 'HTTP ' + res.status })); throw new Error(e.error || 'HTTP ' + res.status); }
+        const data = await res.json();
+        showVideoResult(data.finalReport, data);
+      } catch (err) {
+        showVideoResult('Erro ao analisar vídeo: ' + err.message, null, true);
+      } finally {
+        videoSpinner.style.display = 'none';
+        btnAnalyze.disabled = false;
+      }
+    });
+
+    function showResult(container, text, isError = false) {
+      container.textContent = text;
+      container.classList.add('visible');
+      container.classList.toggle('error', isError);
+    }
+
+    function showVideoResult(report, data, isError = false) {
+      const badgeMap = {
+        surgery:            ['badge-surgery',  'Cirurgia'],
+        consultation_video: ['badge-consult',  'Consulta'],
+        physiotherapy:      ['badge-physio',   'Fisioterapia'],
+        violence_screening: ['badge-violence', 'Triagem de Violência'],
+        unknown:            ['badge-unknown',  'Contexto Indefinido'],
+      };
+      if (data && data.videoClassification) {
+        const [cls, label] = badgeMap[data.videoClassification] ?? badgeMap['unknown'];
+        videoMeta.innerHTML = '<span class="badge ' + cls + '">' + label + '</span>&nbsp;&nbsp;' + (data.framesAnalyzed ?? 0) + ' frames analisados';
+      } else {
+        videoMeta.innerHTML = '';
+      }
+      videoReportContent.textContent = report || 'Sem relatório disponível.';
+      videoResult.classList.add('visible');
+      videoResult.classList.toggle('error', isError);
+    }
+  </script>
+</body>
+</html>
