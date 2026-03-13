@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from schemas.detection import DetectionResponse, FramesInput
 from services.detector import YOLODetector
 from services.analyzer import analyze_clinical_context
+from services.clinical_analyzer import analyze_for_context
 
 app = FastAPI(
     title="YOLOv8 Clinical Vision API",
@@ -189,9 +190,10 @@ async def detect_single_frame(
         ],
         "poses": [
             {
-                "person_id": p["person_id"],
-                "posture_label": p["posture_label"],
-                "keypoints": p["keypoints"],
+                "person_id":       p["person_id"],
+                "posture_label":   p["posture_label"],
+                "keypoints":       p["keypoints"],
+                "clinical_signals": analyze_for_context(p["keypoints"], clinical_context),
             }
             for p in poses
         ],

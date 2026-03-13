@@ -1,21 +1,42 @@
 import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegStatic from 'ffmpeg-static';
 import logger from './logger.js';
+
+ffmpeg.setFfmpegPath(ffmpegStatic as unknown as string);
 import { SpeechClient } from '@google-cloud/speech';
 
 const client = new SpeechClient();
 
+function convertToMono(inputPath: string): Promise<string> {
+  const outputPath = path.join(os.tmpdir(), `mono_${Date.now()}.wav`);
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .audioChannels(1)
+      .audioFrequency(16000)
+      .format('wav')
+      .on('end', () => resolve(outputPath))
+      .on('error', reject)
+      .save(outputPath);
+  });
+}
+
 export async function transcribe(audioPath: string, textOutputPath: string) {
   logger.info('[transcribe_audio_to_text] Iniciando transcrição', { audioPath, textOutputPath });
 
-  const file = fs.readFileSync(audioPath);
+  const monoPath = await convertToMono(audioPath);
+  const file = fs.readFileSync(monoPath);
+  fs.unlinkSync(monoPath);
   const audioBytes = file.toString('base64');
 
   const request = {
     audio: { content: audioBytes },
     config: {
       encoding: 'LINEAR16',
-      languageCode: 'pt-BR',
       sampleRateHertz: 16000,
+      languageCode: 'pt-BR',
     },
   } as any;
 
