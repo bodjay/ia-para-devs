@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x /Users/henrique/Workspace/ia-4-devs/fase-4/tech-challenge-typescript/start.sh /Users/henrique/Workspace/ia-4-devs/fase-4/tech-challenge-typescript/stop.sh)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"import\\(''/Users/henrique/Workspace/ia-4-devs/fase-4/tech-challenge-typescript/modules/agents/node_modules/ffprobe-static/index.js''\\).then\\(m => console.log\\(JSON.stringify\\(m.default || m\\)\\)\\)\")",
+      "Bash(npx tsx -e \":*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''scripts:'''', list\\(d.get\\(''''scripts'''',{}\\).keys\\(\\)\\)\\); print\\(''''main:'''', d.get\\(''''main'''',''''''''\\)\\)\" ls /Users/henrique/Workspace/ia-4-devs/fase-4/tech-challenge-typescript/modules/agents/)",
+      "Read(//private/tmp/**)",
+      "Bash(node --check /tmp/test_script.js)"
+    ],
+    "additionalDirectories": [
+      "/Users/henrique/Workspace/ia-4-devs/fase-4/tech-challenge-typescript/modules/agents/src/agents"
+    ]
+  }
+}

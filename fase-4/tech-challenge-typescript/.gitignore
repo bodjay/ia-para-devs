@@ -1,3 +1,7 @@
 assets/*.wav
+assets/*.mp4
+
 .yolo.log
 .agents.log
+.agents.pid
+.yolo.pid
