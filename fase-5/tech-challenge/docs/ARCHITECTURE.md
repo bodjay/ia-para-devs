@@ -18,6 +18,7 @@ flowchart TB
     PS["process-service"]
     RS["report-service"]
     AS["analyze-service"]
+    AA["architecture-agent"]
 
     %% Databases
     DBP[("processes")]
@@ -25,11 +26,13 @@ flowchart TB
     DBA[("analysis")]
 
     %% Fluxos
-    FE <--> BFF
+    FE --> BFF
 
     BFF --> PS
     BFF --> RS
     BFF --> AS
+    
+    RS --> AA
 
     PS --> KAFKA
     RS --> KAFKA
@@ -40,9 +43,27 @@ flowchart TB
     AS --> DBA
 ````
 
-Cada serviço possúi:
-- Banco de dados próprio
-- Testes automatizados
+##  Estrutura de pastas
+O projeto deve ser um monorepo, e deve utilizar 'lerna (https://github.com/lerna/lerna)' como controlador de versionamento.
+Tanto os agentes quanto os micro serviços devem estar no mesmo repositório.
+
+O cada microserviço deve seguir a arquitetura climpa (Clean Architecture).
+````
+src/
+├── application/
+│   ├── use_cases/
+│   └── interfaces/ (e.g., UserRepositoryInterface.ts)
+├── domain/
+│   ├── entities/
+│   └── services/ (core business logic)
+├── infrastructure/
+│   ├── api/ (routes, middleware)
+│   ├── db/ (database connection and setup)
+│   └── persistence/ (repository implementations, e.g., UserRepository.ts)
+└── interfaces/
+    └── controllers/
+````
+
 
 ## Stack
 - React (Typescript (https://github.com/microsoft/Typescript), Redux (https://github.com/reduxjs/redux), MaterialUI (https://github.com/mui/material-ui))
