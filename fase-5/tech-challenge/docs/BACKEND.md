@@ -5,7 +5,7 @@ O BFF (Backend for Frontend) atua como a camada intermediária entre o cliente (
 
 #### POST /analysis/create
 ##### Request
-``
+````
 {
   "diagram": {
     "id": "string",
@@ -26,23 +26,23 @@ O BFF (Backend for Frontend) atua como a camada intermediária entre o cliente (
     "includeRisks": true
   }
 }
-``
+````
 
 ##### Response
 
-``json
+````json
 {
   "analysisId": "string",
   "status": "created",
   "createdAt": "ISO-8601",
   "estimatedCompletionSeconds": 0
 }
-``
+````
 
 #### GET /analysis/:id
 ##### Response
 
-``json
+````json
 {
   "analysisId": "string",
   "status": "pending | processing | completed | failed",
@@ -83,14 +83,14 @@ O BFF (Backend for Frontend) atua como a camada intermediária entre o cliente (
     "message": "string"
   }
 }
-``
+````
 
 ### upload-service
 O upload-service é responsável por receber arquivos de diagramas (imagem ou PDF) enviados pelo cliente, validar seus metadados, armazená-los em um repositório e iniciar o fluxo assíncrono de processamento;
 
 #### POST /upload
 ##### Request
-``json
+````json
 {
   "file": {
     "name": "string",
@@ -105,21 +105,21 @@ O upload-service é responsável por receber arquivos de diagramas (imagem ou PD
     "email": "string"
   }
 }
-``
+````
 
 ##### Response
 
-``json
+````json
 {
   "diagramId": "string",
   "status": "uploaded",
   "storageUrl": "string",
   "uploadedAt": "ISO-8601"
 }
-``
+````
 #### Producer — diagram.created
 ##### Output
-``json
+````json
 {
   "eventId": "string",
   "timestamp": "ISO-8601",
@@ -136,7 +136,7 @@ O upload-service é responsável por receber arquivos de diagramas (imagem ou PD
     "email": "string"
   }
 }
-``
+````
 
 
 ### processing-service
@@ -144,7 +144,7 @@ Realiza a extração de informações estruturais do diagrama — como textos, c
 
 #### Consumer — diagram.processed
 ##### Input
-``json
+````json
 {
   "eventId": "string",
   "timestamp": "ISO-8601",
@@ -161,11 +161,11 @@ Realiza a extração de informações estruturais do diagrama — como textos, c
     "email": "string"
   }
 }
-``
+````
 
 #### Kafka Producer — diagram.processed
 ##### Output
-``json
+````json
 {
   "eventId": "string",
   "timestamp": "ISO-8601",
@@ -194,14 +194,14 @@ Realiza a extração de informações estruturais do diagrama — como textos, c
     "message": "string"
   }
 }
-``
+````
 
 ### report-service
 Recebe os dados processados, aplica regras de análise arquitetural para identificar componentes, riscos e padrões relevantes, e consolida tudo em um resultado final estruturado, incluindo recomendações e resumo técnico, publicando o evento de conclusão da análise para consumo pelo restante do sistema.
 
 #### Kafka Consumer — diagram.processed
 ##### Input
-``json
+````json
 {
   "eventId": "string",
   "timestamp": "ISO-8601",
@@ -226,10 +226,10 @@ Recebe os dados processados, aplica regras de análise arquitetural para identif
     ]
   }
 }
-``
+````
 #### Kafka Producer — analysis.completed
 ##### Output
-``json
+````json
 {
   "eventId": "string",
   "timestamp": "ISO-8601",
@@ -265,4 +265,4 @@ Recebe os dados processados, aplica regras de análise arquitetural para identif
     "message": "string"
   }
 }
-``
+````
