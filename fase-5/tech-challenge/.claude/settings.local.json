@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /c/Users/bodj/Workspace/ia-para-devs/fase-5/tech-challenge/packages/bff/src/domain/entities)",
+      "Bash(mkdir -p /c/Users/bodj/Workspace/ia-para-devs/fase-5/tech-challenge/packages/bff/src/domain/repositories)",
+      "Bash(mkdir -p /c/Users/bodj/Workspace/ia-para-devs/fase-5/tech-challenge/packages/bff/src/domain/use-cases)",
+      "Bash(mkdir -p /c/Users/bodj/Workspace/ia-para-devs/fase-5/tech-challenge/packages/bff/src/application/use-cases)",
+      "Bash(mkdir -p /c/Users/bodj/Workspace/ia-para-devs/fase-5/tech-challenge/packages/bff/src/infrastructure/repositories)",
+      "Bash(find C:/Users/bodj/Workspace/ia-para-devs/fase-5/tech-challenge/packages/processing-service/src -type f -name *.ts)",
+      "Bash(cat C:/Users/bodj/Workspace/ia-para-devs/fase-5/tech-challenge/packages/upload-service/src/domain/entities/*.ts)",
+      "Bash(npm install:*)",
+      "Read(//usr/local/**)",
+      "Read(//c//**)",
+      "Bash(for pkg:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/bodj/Workspace/ia-para-devs/fase-5/tech-challenge/**)",
+      "Bash(done)",
+      "Bash(npm test:*)",
+      "Bash(npm show:*)",
+      "Bash(npx lerna:*)",
+      "Bash(node -e \"const j = require\\(''./node_modules/jest-config/build/Defaults.js''\\); console.log\\(Object.keys\\(j.default || j\\).filter\\(k => k.toLowerCase\\(\\).includes\\(''setup''\\)\\)\\)\")",
+      "Bash(node -e \"const j = require\\(''./node_modules/@jest/types/build/index.js''\\); console.log\\(''ok''\\)\")",
+      "Bash(node:*)",
+      "Bash(grep -v \"^--$\")",
+      "Bash(npx jest:*)",
+      "Bash(find /c/Users/bodj/Workspace/ia-para-devs/fase-5/tech-challenge -name Dockerfile* -o -name docker-compose*)"
+    ]
+  }
+}
