@@ -10,6 +10,7 @@ import { ProcessDiagramUseCase } from './application/use-cases/ProcessDiagramUse
 const MONGO_URI = process.env.MONGO_URI ?? 'mongodb://localhost:27017/arch-analyzer-processing';
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(',');
 const EXTRACTION_AGENT_URL = process.env.EXTRACTION_AGENT_URL ?? 'http://localhost:3003';
+const EXTRACTION_AGENT_TIMEOUT_MS = parseInt(process.env.EXTRACTION_AGENT_TIMEOUT_MS ?? '360000', 10);
 const AWS_REGION = process.env.AWS_REGION ?? 'us-east-1';
 
 async function bootstrap(): Promise<void> {
@@ -19,7 +20,7 @@ async function bootstrap(): Promise<void> {
 
   const repository = new ProcessingJobRepository();
   const textractAdapter = new TextractAdapter(AWS_REGION);
-  const agentClient = new DiagramExtractionAgentClient(EXTRACTION_AGENT_URL);
+  const agentClient = new DiagramExtractionAgentClient(EXTRACTION_AGENT_URL, EXTRACTION_AGENT_TIMEOUT_MS);
   const producer = new DiagramProcessedProducer(kafka);
   await producer.connect();
 

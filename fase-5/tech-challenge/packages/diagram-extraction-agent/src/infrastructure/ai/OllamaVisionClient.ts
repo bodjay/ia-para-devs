@@ -4,7 +4,7 @@ export class OllamaVisionClient implements IVisionClient {
   constructor(
     private readonly baseUrl: string = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434',
     private readonly model: string = process.env.OLLAMA_MODEL ?? 'llava',
-    private readonly timeoutMs: number = 60000
+    private readonly timeoutMs: number = 300_000
   ) {}
 
   async extractFromUrl(

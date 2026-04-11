@@ -25,13 +25,14 @@ export class TextractAdapter implements ITextractAdapter {
         FeatureTypes: ['LAYOUT'],
       })
     );
+    console.log('Textract found blocks:', response.Blocks?.length ?? 0);
 
-    const lines = (response.Blocks ?? [])
-      .filter((block) => block.BlockType === 'LINE')
-      .map((block) => block.Text ?? '')
-      .filter(Boolean);
+    if (response.Blocks?.length === 0) {
+      console.warn('Textract did not return any blocks for the document');
+      return '';
+    }
 
-    return lines.join('\n');
+    return JSON.stringify(response);
   }
 
   private parseS3Url(storageUrl: string): { bucket: string; key: string } {
