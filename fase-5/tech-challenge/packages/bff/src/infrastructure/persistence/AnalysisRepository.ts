@@ -49,6 +49,27 @@ export class AnalysisRepository implements IAnalysisRepository {
     return this.toEntity(doc);
   }
 
+  async findByDiagramId(diagramId: string): Promise<Analysis | null> {
+    const doc = await AnalysisModel.findOne({ 'diagram.id': diagramId }).sort({ createdAt: -1 });
+    if (!doc) return null;
+    return this.toEntity(doc);
+  }
+
+  async update(analysis: Analysis): Promise<void> {
+    const json = analysis.toJSON();
+    await AnalysisModel.updateOne(
+      { analysisId: json.analysisId },
+      {
+        $set: {
+          status: json.status,
+          completedAt: json.completedAt,
+          result: json.result ? (json.result as any).toJSON?.() ?? json.result : undefined,
+          error: json.error,
+        },
+      }
+    );
+  }
+
   private toEntity(doc: AnalysisDocument): Analysis {
     const props: AnalysisProps = {
       analysisId: doc.analysisId,

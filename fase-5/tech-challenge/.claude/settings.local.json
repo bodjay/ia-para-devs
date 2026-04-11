@@ -32,7 +32,8 @@
       "Bash(docker exec:*)",
       "Bash(curl:*)",
       "Bash(python -m json.tool)",
-      "Bash(awk '{print $2, $3, $4}')"
+      "Bash(awk '{print $2, $3, $4}')",
+      "Bash(xargs grep:*)"
     ]
   }
 }
