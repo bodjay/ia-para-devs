@@ -110,10 +110,13 @@ services:
       PORT: 3002
       MONGO_URI: mongodb://mongo:27017/arch-analyzer-uploads
       KAFKA_BROKERS: kafka:9092
+      UPLOAD_DIR: /app/uploads
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+    volumes:
+      - uploads-data:/app/uploads
     depends_on:
       mongo:
         condition: service_healthy
@@ -172,4 +175,5 @@ services:
 
 volumes:
   mongo-data:
+  uploads-data:
   ollama-data:
