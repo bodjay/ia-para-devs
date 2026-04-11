@@ -13,7 +13,7 @@ O arquivo `docker-compose.yaml` na raiz do projeto orquestra todos os serviços 
 | `mongo` | `mongo:7.0` | 27017 | Banco de dados (compartilhado entre serviços) |
 | `ollama` | `ollama/ollama:latest` | 11434 | LLM local (profile: `ollama`) |
 | `diagram-extraction-agent` | build | 3003 | Extração de elementos via Claude ou Ollama |
-| `architecture-analysis-agent` | build | 3004 | Análise de riscos via Claude |
+| `architecture-analysis-agent` | build | 3004 | Análise de riscos via Claude ou Ollama |
 | `bff` | build | 3001 | API Gateway |
 | `upload-service` | build | 3002 | Upload de diagramas para S3 |
 | `processing-service` | build | — | Consumidor Kafka: extração via Textract + agente |
@@ -56,6 +56,54 @@ Variáveis com fallback no compose (ex: `${AWS_REGION:-us-east-1}`) usam o valor
 - O `processing-service` extrai texto bruto dos documentos armazenados no S3 via `@aws-sdk/client-textract`.
 - Permissão necessária: `textract:DetectDocumentText`.
 - Referência: [@aws-sdk/client-textract](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-client-textract/)
+
+---
+
+### Scripts utilitários
+
+#### `scripts/reprocess-failed-reports.sh`
+
+Reprocessa relatórios com falha republicando eventos Kafka para re-acionar o pipeline.
+
+**Pré-requisito:** MongoDB e Kafka do Docker Compose devem estar rodando.
+
+```bash
+docker compose up -d mongo kafka
+```
+
+**Uso:**
+
+```bash
+# Simulação (sem publicar mensagens)
+./scripts/reprocess-failed-reports.sh --error-code ANALYSIS_ERROR --dry-run
+
+# Reprocessar por código de erro
+./scripts/reprocess-failed-reports.sh --error-code ANALYSIS_ERROR
+
+# Reprocessar um diagrama específico
+./scripts/reprocess-failed-reports.sh --diagram-id <uuid>
+
+# Limitar quantidade processada
+./scripts/reprocess-failed-reports.sh --error-code INTERNAL_ERROR --limit 10
+
+# Forçar re-execução completa do pipeline (republica diagram.created)
+./scripts/reprocess-failed-reports.sh --error-code ANALYSIS_ERROR --from-beginning
+```
+
+**Opções disponíveis:**
+
+| Opção | Descrição |
+|---|---|
+| `--error-code <code>` | Filtra relatórios pelo código de erro (ex: `ANALYSIS_ERROR`, `INTERNAL_ERROR`) |
+| `--diagram-id <id>` | Reprocessa apenas o relatório do diagrama especificado |
+| `--limit <n>` | Máximo de relatórios a reprocessar (padrão: 100) |
+| `--dry-run` | Exibe o que seria publicado sem enviar mensagens ao Kafka |
+| `--from-beginning` | Sempre republica `diagram.created`, mesmo que o job de processamento tenha sido bem-sucedido |
+
+**Estratégia de reprocessamento:**
+
+- Se o `ProcessingJob` existir e tiver sido bem-sucedido → republica `diagram.processed` (re-executa apenas a análise)
+- Se o `ProcessingJob` falhou ou não existe → republica `diagram.created` (reinicia o pipeline completo)
 
 ---
 

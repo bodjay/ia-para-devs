@@ -1,34 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { AnalysisComponent, ArchitecturePattern, AnalysisError } from '../../domain/entities/ArchitectureAnalysis';
-import { SeverityLevel } from '../../domain/entities/ArchitectureRisk';
-import { PriorityLevel } from '../../domain/entities/ArchitectureRecommendation';
-import { AnalysisElement, AnalysisConnection, AnalysisDepth } from '../../domain/use-cases/IAnalyzeArchitectureUseCase';
+import { AnalysisElement, AnalysisConnection } from '../../domain/use-cases/IAnalyzeArchitectureUseCase';
+import { IAnalysisClient, AnalysisResponse, AnalysisOptions } from './IAnalysisClient';
 
-export interface ClaudeRisk {
-  title: string;
-  description: string;
-  severity: SeverityLevel;
-  affectedComponents: string[];
-}
-
-export interface ClaudeRecommendation {
-  title: string;
-  description: string;
-  priority: PriorityLevel;
-  relatedRisks: string[];
-}
-
-export interface ClaudeAnalysisResponse {
-  components: AnalysisComponent[];
-  architecturePatterns: ArchitecturePattern[];
-  risks: ClaudeRisk[];
-  recommendations: ClaudeRecommendation[];
-  summary: string;
-}
-
-export class ClaudeAnalysisClient {
+export class ClaudeAnalysisClient implements IAnalysisClient {
   private readonly client: Anthropic;
-  private readonly model = 'claude-3-5-sonnet-20241022';
+  private readonly model = 'claude-sonnet-4-6';
 
   constructor(apiKey: string) {
     this.client = new Anthropic({ apiKey });
@@ -37,24 +13,14 @@ export class ClaudeAnalysisClient {
   async analyze(
     elements: AnalysisElement[],
     connections: AnalysisConnection[],
-    options: {
-      analysisDepth: AnalysisDepth;
-      includeRisks: boolean;
-      includeRecommendations: boolean;
-      language: string;
-    }
-  ): Promise<ClaudeAnalysisResponse> {
+    options: AnalysisOptions
+  ): Promise<AnalysisResponse> {
     const prompt = this.buildAnalysisPrompt(elements, connections, options);
 
     const response = await this.client.messages.create({
       model: this.model,
       max_tokens: 8096,
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
+      messages: [{ role: 'user', content: prompt }],
     });
 
     const textContent = response.content.find((c) => c.type === 'text');
@@ -62,18 +28,13 @@ export class ClaudeAnalysisClient {
       throw new Error('No text response from Claude Analysis API');
     }
 
-    return JSON.parse(textContent.text) as ClaudeAnalysisResponse;
+    return JSON.parse(textContent.text) as AnalysisResponse;
   }
 
   private buildAnalysisPrompt(
     elements: AnalysisElement[],
     connections: AnalysisConnection[],
-    options: {
-      analysisDepth: AnalysisDepth;
-      includeRisks: boolean;
-      includeRecommendations: boolean;
-      language: string;
-    }
+    options: AnalysisOptions
   ): string {
     return `Analyze this software architecture with ${options.analysisDepth} depth. Language: ${options.language}.
 

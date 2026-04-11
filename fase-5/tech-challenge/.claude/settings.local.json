@@ -26,7 +26,13 @@
       "Bash(find /c/Users/bodj/Workspace/ia-para-devs/fase-5/tech-challenge -name Dockerfile* -o -name docker-compose*)",
       "Bash(docker network inspect:*)",
       "Bash(docker network connect:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(KAFKAJS_NO_PARTITIONER_WARNING=1 ./scripts/reprocess-failed-reports.sh --error-code ANALYSIS_ERROR)",
+      "Bash(curl -s -X POST http://localhost:3004 -H 'Content-Type: application/json' -d '{\"action\":\"analyze\",\"payload\":{\"diagramId\":\"test-123\",\"elements\":[{\"id\":\"1\",\"label\":\"Service A\",\"type\":\"microservice\"}],\"connections\":[],\"options\":{\"analysisDepth\":\"basic\",\"includeRisks\":false,\"includeRecommendations\":false,\"language\":\"en\"}}}')",
+      "Bash(docker exec:*)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool)",
+      "Bash(awk '{print $2, $3, $4}')"
     ]
   }
 }

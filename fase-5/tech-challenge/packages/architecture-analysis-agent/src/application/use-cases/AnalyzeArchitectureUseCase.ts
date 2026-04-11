@@ -6,10 +6,10 @@ import {
   IAnalyzeArchitectureUseCase,
   AnalyzeArchitectureInput,
 } from '../../domain/use-cases/IAnalyzeArchitectureUseCase';
-import { ClaudeAnalysisClient } from '../../infrastructure/ai/ClaudeAnalysisClient';
+import { IAnalysisClient } from '../../infrastructure/ai/IAnalysisClient';
 
 export class AnalyzeArchitectureUseCase implements IAnalyzeArchitectureUseCase {
-  constructor(private readonly claudeAnalysisClient: ClaudeAnalysisClient) {}
+  constructor(private readonly analysisClient: IAnalysisClient) {}
 
   async execute(input: AnalyzeArchitectureInput): Promise<ArchitectureAnalysis> {
     const { payload } = input;
@@ -23,7 +23,7 @@ export class AnalyzeArchitectureUseCase implements IAnalyzeArchitectureUseCase {
     const analysisId = uuidv4();
 
     try {
-      const claudeResponse = await this.claudeAnalysisClient.analyze(
+      const claudeResponse = await this.analysisClient.analyze(
         payload.elements,
         payload.connections,
         options

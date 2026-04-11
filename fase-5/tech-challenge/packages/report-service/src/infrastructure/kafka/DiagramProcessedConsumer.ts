@@ -30,7 +30,11 @@ export class DiagramProcessedConsumer {
     private readonly generateReportUseCase: IGenerateReportUseCase,
     private readonly groupId: string = 'report-service-group'
   ) {
-    this.consumer = kafka.consumer({ groupId: this.groupId });
+    this.consumer = kafka.consumer({
+      groupId: this.groupId,
+      sessionTimeout: 300000,  // 5 min — allows long Ollama inference
+      heartbeatInterval: 10000, // 10s heartbeat
+    });
   }
 
   async connect(): Promise<void> {
@@ -63,19 +67,26 @@ export class DiagramProcessedConsumer {
           return;
         }
 
-        await this.generateReportUseCase.execute({
-          diagramId: event.diagram.id,
-          fileName: event.diagram.fileName,
-          fileType: event.diagram.fileType,
-          storageUrl: event.diagram.storageUrl,
-          extractedText: event.processing.extractedText,
-          elements: event.processing.elements.map((el, idx) => ({
-            id: `element-${idx}`,
-            label: el.label,
-            type: el.type as any,
-            position: el.position,
-          })),
-        });
+        // Keep the broker heartbeat alive during long Ollama inference
+        const heartbeatTimer = setInterval(() => heartbeat().catch(() => {}), 8000);
+
+        try {
+          await this.generateReportUseCase.execute({
+            diagramId: event.diagram.id,
+            fileName: event.diagram.fileName,
+            fileType: event.diagram.fileType,
+            storageUrl: event.diagram.storageUrl,
+            extractedText: event.processing.extractedText,
+            elements: event.processing.elements.map((el, idx) => ({
+              id: `element-${idx}`,
+              label: el.label,
+              type: el.type as any,
+              position: el.position,
+            })),
+          });
+        } finally {
+          clearInterval(heartbeatTimer);
+        }
 
         await heartbeat();
       },

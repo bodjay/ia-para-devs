@@ -1,13 +1,21 @@
 import express, { Request, Response } from 'express';
 import { ClaudeAnalysisClient } from './infrastructure/ai/ClaudeAnalysisClient';
+import { OllamaAnalysisClient } from './infrastructure/ai/OllamaAnalysisClient';
+import { IAnalysisClient } from './infrastructure/ai/IAnalysisClient';
 import { AnalyzeArchitectureUseCase } from './application/use-cases/AnalyzeArchitectureUseCase';
 import { AnalyzeArchitectureInput } from './domain/use-cases/IAnalyzeArchitectureUseCase';
 
 const PORT = process.env.PORT ?? 3004;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? '';
+const AI_PROVIDER = process.env.AI_PROVIDER ?? 'ollama';
 
-const claudeAnalysisClient = new ClaudeAnalysisClient(ANTHROPIC_API_KEY);
-const analyzeUseCase = new AnalyzeArchitectureUseCase(claudeAnalysisClient);
+const analysisClient: IAnalysisClient =
+  AI_PROVIDER === 'claude'
+    ? new ClaudeAnalysisClient(process.env.ANTHROPIC_API_KEY ?? '')
+    : new OllamaAnalysisClient();
+
+console.log(`Architecture analysis agent using provider: ${AI_PROVIDER}`);
+
+const analyzeUseCase = new AnalyzeArchitectureUseCase(analysisClient);
 
 const app = express();
 app.use(express.json());
