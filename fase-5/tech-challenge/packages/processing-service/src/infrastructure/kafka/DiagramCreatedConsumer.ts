@@ -10,7 +10,11 @@ export class DiagramCreatedConsumer {
     private readonly kafka: Kafka,
     private readonly processUseCase: IProcessDiagramUseCase
   ) {
-    this.consumer = kafka.consumer({ groupId: this.groupId });
+    this.consumer = kafka.consumer({
+      groupId: this.groupId,
+      sessionTimeout: 90_000,
+      heartbeatInterval: 3_000,
+    });
   }
 
   async connect(): Promise<void> {
@@ -23,8 +27,22 @@ export class DiagramCreatedConsumer {
 
   async start(): Promise<void> {
     await this.consumer.run({
-      eachMessage: async (payload: EachMessagePayload) => {
-        await this.processMessage(payload);
+      eachMessage: async (rawPayload: EachMessagePayload) => {
+        const payload = rawPayload as EachMessagePayload & {
+          commitOffsetsIfNecessary?(): Promise<void>;
+        };
+        const keepAlive = setInterval(() => void payload.heartbeat(), 10_000);
+        try {
+          await this.processMessage(payload);
+          await payload.commitOffsetsIfNecessary?.();
+        } catch (error) {
+          console.error(
+            '[DiagramCreatedConsumer] Message processing failed, offset not committed (will retry):',
+            (error as Error).message
+          );
+        } finally {
+          clearInterval(keepAlive);
+        }
       },
     });
   }
@@ -34,29 +52,22 @@ export class DiagramCreatedConsumer {
   }
 
   private async processMessage(payload: EachMessagePayload): Promise<void> {
-    const { message, heartbeat } = payload;
-    const commitOffsetsIfNecessary = (payload as EachMessagePayload & { commitOffsetsIfNecessary(): Promise<void> }).commitOffsetsIfNecessary;
+    const { message } = payload;
+
+    const rawValue = message.value?.toString();
+    if (!rawValue) {
+      console.error('Received empty message in diagram.created topic');
+      return;
+    }
 
     let event: DiagramCreatedEvent;
-
     try {
-      const rawValue = message.value?.toString();
-      if (!rawValue) {
-        console.error('Received empty message in diagram.created topic');
-        return;
-      }
       event = JSON.parse(rawValue) as DiagramCreatedEvent;
     } catch (error) {
       console.error('Failed to deserialize diagram.created message:', error);
       return;
     }
 
-    try {
-      await this.processUseCase.execute(event);
-      await commitOffsetsIfNecessary();
-    } catch (error) {
-      console.error('Failed to process diagram.created event:', error);
-      // Do not commit offset - message will be reprocessed
-    }
+    await this.processUseCase.execute(event);
   }
 }

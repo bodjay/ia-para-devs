@@ -1,4 +1,4 @@
-import { TextractClient, DetectDocumentTextCommand } from '@aws-sdk/client-textract';
+import { TextractClient, AnalyzeDocumentCommand } from '@aws-sdk/client-textract';
 
 export interface ITextractAdapter {
   extractText(storageUrl: string): Promise<string>;
@@ -15,13 +15,14 @@ export class TextractAdapter implements ITextractAdapter {
     const { bucket, key } = this.parseS3Url(storageUrl);
 
     const response = await this.client.send(
-      new DetectDocumentTextCommand({
+      new AnalyzeDocumentCommand({
         Document: {
           S3Object: {
             Bucket: bucket,
             Name: key,
           },
         },
+        FeatureTypes: ['LAYOUT'],
       })
     );
 

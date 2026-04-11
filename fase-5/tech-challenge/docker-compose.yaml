@@ -135,6 +135,8 @@ services:
       KAFKA_BROKERS: kafka:9092
       EXTRACTION_AGENT_URL: http://diagram-extraction-agent:3003
       AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
     depends_on:
       mongo:
         condition: service_healthy

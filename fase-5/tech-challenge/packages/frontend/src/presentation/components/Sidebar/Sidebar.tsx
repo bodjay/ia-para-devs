@@ -12,7 +12,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import { RootState, AppDispatch } from '../../../application/store';
 import {
-  createSession,
+  createSessionAsync,
   selectSession,
   searchSessions,
   SessionRecord,
@@ -37,12 +37,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onSessionCreate, onSessionSelect }) =
     (a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()
   );
 
-  const handleNewSession = () => {
-    const id = crypto.randomUUID();
+  const handleNewSession = async () => {
     const count = sessions.length + 1;
-    dispatch(createSession({ name: `Sessão ${count}`, id }));
-    if (onSessionCreate) {
-      onSessionCreate(id);
+    const result = await dispatch(createSessionAsync({ name: `Sessão ${count}` }));
+    if (createSessionAsync.fulfilled.match(result) && onSessionCreate) {
+      onSessionCreate(result.payload.id);
     }
   };
 

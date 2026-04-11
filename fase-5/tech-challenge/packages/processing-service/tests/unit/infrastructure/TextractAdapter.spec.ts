@@ -1,13 +1,13 @@
 import { TextractAdapter } from '../../../src/infrastructure/textract/TextractAdapter';
-import { TextractClient, DetectDocumentTextCommand } from '@aws-sdk/client-textract';
+import { TextractClient, AnalyzeDocumentCommand } from '@aws-sdk/client-textract';
 
 jest.mock('@aws-sdk/client-textract', () => ({
   TextractClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
-  DetectDocumentTextCommand: jest.fn().mockImplementation((input) => ({ input })),
+  AnalyzeDocumentCommand: jest.fn().mockImplementation((input) => ({ input })),
 }));
 
 const MockTextractClient = jest.mocked(TextractClient);
-const MockDetectDocumentTextCommand = jest.mocked(DetectDocumentTextCommand);
+const MockAnalyzeDocumentCommand = jest.mocked(AnalyzeDocumentCommand);
 
 const STORAGE_URL = 'https://arch-bucket.s3.us-east-1.amazonaws.com/1234567890-diagram.png';
 
@@ -43,6 +43,7 @@ describe('TextractAdapter', () => {
         Blocks: [
           { BlockType: 'PAGE', Text: undefined },
           { BlockType: 'WORD', Text: 'foo' },
+          { BlockType: 'LAYOUT_FIGURE', Text: undefined },
           { BlockType: 'LINE', Text: 'valid line' },
         ],
       });
@@ -75,7 +76,7 @@ describe('TextractAdapter', () => {
 
       await adapter.extractText(STORAGE_URL);
 
-      const [commandArg] = MockDetectDocumentTextCommand.mock.calls[0];
+      const [commandArg] = MockAnalyzeDocumentCommand.mock.calls[0];
       expect(commandArg.Document!.S3Object!.Bucket).toBe('arch-bucket');
     });
 
@@ -84,8 +85,17 @@ describe('TextractAdapter', () => {
 
       await adapter.extractText(STORAGE_URL);
 
-      const [commandArg] = MockDetectDocumentTextCommand.mock.calls[0];
+      const [commandArg] = MockAnalyzeDocumentCommand.mock.calls[0];
       expect(commandArg.Document!.S3Object!.Name).toBe('1234567890-diagram.png');
+    });
+
+    it('should use LAYOUT feature type', async () => {
+      mockSend.mockResolvedValue({ Blocks: [] });
+
+      await adapter.extractText(STORAGE_URL);
+
+      const [commandArg] = MockAnalyzeDocumentCommand.mock.calls[0];
+      expect(commandArg.FeatureTypes).toEqual(['LAYOUT']);
     });
 
     it('should throw when Textract SDK fails', async () => {

@@ -64,7 +64,7 @@ export interface IDiagramExtractionAgentClient {
 }
 
 export class DiagramExtractionAgentClient implements IDiagramExtractionAgentClient {
-  constructor(private readonly baseUrl: string, private readonly timeoutMs: number = 30000) {}
+  constructor(private readonly baseUrl: string, private readonly timeoutMs: number = 120_000) {}
 
   async extract(input: ExtractionAgentInput): Promise<ExtractionAgentOutput> {
     const controller = new AbortController();

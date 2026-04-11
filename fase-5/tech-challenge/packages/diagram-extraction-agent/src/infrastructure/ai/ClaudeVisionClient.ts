@@ -14,28 +14,31 @@ export class ClaudeVisionClient implements IVisionClient {
   async extractFromUrl(storageUrl: string, fileType: string, extractedText?: string): Promise<VisionExtractionResponse> {
     const prompt = this.buildExtractionPrompt(fileType, extractedText);
 
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: 4096,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'url',
-                url: storageUrl,
+    const response = await this.client.messages.create(
+      {
+        model: this.model,
+        max_tokens: 4096,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: {
+                  type: 'url',
+                  url: storageUrl,
+                },
               },
-            },
-            {
-              type: 'text',
-              text: prompt,
-            },
-          ],
-        },
-      ],
-    });
+              {
+                type: 'text',
+                text: prompt,
+              },
+            ],
+          },
+        ],
+      },
+      { timeout: 90_000 }
+    );
 
     const textContent = response.content.find((c) => c.type === 'text');
     if (!textContent || textContent.type !== 'text') {
