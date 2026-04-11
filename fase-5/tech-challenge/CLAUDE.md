@@ -8,3 +8,6 @@
 - [Descreve os microserviços do backend e suas responsabilidades (BACKEND)](@doc/BACKEND.md)
 - [Descreve a infraestrutura Docker e o pipeline CI/CD (INFRA_DEVOPS)](@doc/INFRA_DEVOPS.md)
 - [Descreve as práticas de qualidade, logs estruturados e testes (QUALITY_OBSERVABILITY)](@doc/QUALITY_OBSERVABILITY.md)
+
+## Deveres
+- Qualquer alteração estrutural dedve ser documentada em seus respectivos arquivos.
