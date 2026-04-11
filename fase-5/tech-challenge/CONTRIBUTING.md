@@ -76,7 +76,7 @@ docker compose --profile ollama up --build
 Após os contêineres subirem, faça o pull do modelo de visão no contêiner do Ollama:
 
 ```bash
-docker compose exec ollama ollama pull llava
+docker compose exec ollama ollama pull qwen3:4b
 ```
 
 Configure o `.env` para usar Ollama:
