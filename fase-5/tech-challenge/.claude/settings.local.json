@@ -23,7 +23,10 @@
       "Bash(node:*)",
       "Bash(grep -v \"^--$\")",
       "Bash(npx jest:*)",
-      "Bash(find /c/Users/bodj/Workspace/ia-para-devs/fase-5/tech-challenge -name Dockerfile* -o -name docker-compose*)"
+      "Bash(find /c/Users/bodj/Workspace/ia-para-devs/fase-5/tech-challenge -name Dockerfile* -o -name docker-compose*)",
+      "Bash(docker network inspect:*)",
+      "Bash(docker network connect:*)",
+      "Bash(docker compose:*)"
     ]
   }
 }
