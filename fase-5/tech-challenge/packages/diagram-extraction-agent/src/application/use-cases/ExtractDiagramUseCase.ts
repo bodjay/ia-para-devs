@@ -1,16 +1,16 @@
 import { DiagramElement } from '../../domain/entities/DiagramElement';
 import { ExtractionResult } from '../../domain/entities/ExtractionResult';
 import { IExtractDiagramUseCase, ExtractDiagramInput } from '../../domain/use-cases/IExtractDiagramUseCase';
-import { ClaudeVisionClient } from '../../infrastructure/ai/ClaudeVisionClient';
+import { IVisionClient } from '../../infrastructure/ai/IVisionClient';
 
 export class ExtractDiagramUseCase implements IExtractDiagramUseCase {
-  constructor(private readonly claudeVisionClient: ClaudeVisionClient) {}
+  constructor(private readonly visionClient: IVisionClient) {}
 
   async execute(input: ExtractDiagramInput): Promise<ExtractionResult> {
     const { diagram } = input.payload;
 
     try {
-      const claudeResponse = await this.claudeVisionClient.extractFromUrl(
+      const claudeResponse = await this.visionClient.extractFromUrl(
         diagram.storageUrl,
         diagram.fileType,
         input.payload.extractedText

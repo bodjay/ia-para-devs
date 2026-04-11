@@ -1,25 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ElementType } from '../../domain/entities/DiagramElement';
-import { ConnectionType } from '../../domain/entities/ExtractionResult';
+import { IVisionClient, VisionExtractionResponse } from './IVisionClient';
 
-export interface ClaudeExtractionResponse {
-  extractedText: string;
-  elements: Array<{
-    id: string;
-    label: string;
-    type: ElementType;
-    confidence: number;
-    boundingBox: { x: number; y: number; width: number; height: number };
-  }>;
-  connections: Array<{
-    fromElementId: string;
-    toElementId: string;
-    type: ConnectionType;
-    label?: string;
-  }>;
-}
+export type ClaudeExtractionResponse = VisionExtractionResponse;
 
-export class ClaudeVisionClient {
+export class ClaudeVisionClient implements IVisionClient {
   private readonly client: Anthropic;
   private readonly model = 'claude-3-5-sonnet-20241022';
 
@@ -27,7 +11,7 @@ export class ClaudeVisionClient {
     this.client = new Anthropic({ apiKey });
   }
 
-  async extractFromUrl(storageUrl: string, fileType: string, extractedText?: string): Promise<ClaudeExtractionResponse> {
+  async extractFromUrl(storageUrl: string, fileType: string, extractedText?: string): Promise<VisionExtractionResponse> {
     const prompt = this.buildExtractionPrompt(fileType, extractedText);
 
     const response = await this.client.messages.create({

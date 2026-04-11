@@ -1,13 +1,19 @@
 import express, { Request, Response } from 'express';
 import { ClaudeVisionClient } from './infrastructure/ai/ClaudeVisionClient';
+import { OllamaVisionClient } from './infrastructure/ai/OllamaVisionClient';
+import { IVisionClient } from './infrastructure/ai/IVisionClient';
 import { ExtractDiagramUseCase } from './application/use-cases/ExtractDiagramUseCase';
 import { ExtractDiagramInput } from './domain/use-cases/IExtractDiagramUseCase';
 
 const PORT = process.env.PORT ?? 3003;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? '';
+const AI_PROVIDER = process.env.AI_PROVIDER ?? 'claude';
 
-const claudeVisionClient = new ClaudeVisionClient(ANTHROPIC_API_KEY);
-const extractUseCase = new ExtractDiagramUseCase(claudeVisionClient);
+const visionClient: IVisionClient =
+  AI_PROVIDER === 'ollama'
+    ? new OllamaVisionClient()
+    : new ClaudeVisionClient(process.env.ANTHROPIC_API_KEY ?? '');
+
+const extractUseCase = new ExtractDiagramUseCase(visionClient);
 
 const app = express();
 app.use(express.json());

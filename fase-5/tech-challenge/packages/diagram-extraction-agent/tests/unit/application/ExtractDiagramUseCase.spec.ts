@@ -1,6 +1,8 @@
 import { ExtractDiagramUseCase } from '../../../src/application/use-cases/ExtractDiagramUseCase';
-import { ClaudeVisionClient, ClaudeExtractionResponse } from '../../../src/infrastructure/ai/ClaudeVisionClient';
+import { IVisionClient, VisionExtractionResponse } from '../../../src/infrastructure/ai/IVisionClient';
 import { ExtractDiagramInput } from '../../../src/domain/use-cases/IExtractDiagramUseCase';
+
+type ClaudeExtractionResponse = VisionExtractionResponse;
 
 const makeClaudeResponse = (overrides: Partial<ClaudeExtractionResponse> = {}): ClaudeExtractionResponse => ({
   extractedText: 'api-gateway user-service order-service mongodb kafka web-client',
@@ -62,13 +64,13 @@ const makePdfInput = (): ExtractDiagramInput => ({
 });
 
 describe('ExtractDiagramUseCase', () => {
-  let claudeVisionClient: jest.Mocked<ClaudeVisionClient>;
+  let claudeVisionClient: jest.Mocked<IVisionClient>;
   let useCase: ExtractDiagramUseCase;
 
   beforeEach(() => {
     claudeVisionClient = {
       extractFromUrl: jest.fn().mockResolvedValue(makeClaudeResponse()),
-    } as unknown as jest.Mocked<ClaudeVisionClient>;
+    } as jest.Mocked<IVisionClient>;
 
     useCase = new ExtractDiagramUseCase(claudeVisionClient);
   });
