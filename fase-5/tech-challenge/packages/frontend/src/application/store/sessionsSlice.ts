@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { SessionProps } from '../../domain/entities/Session';
+import { bffClient } from '../../infrastructure/api/bffClient';
 
 export interface SessionRecord {
   id: string;
@@ -31,12 +32,18 @@ export const fetchSessions = createAsyncThunk(
   'sessions/fetchSessions',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/sessions');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch sessions: ${response.statusText}`);
-      }
-      const data = await response.json();
-      return data as SessionRecord[];
+      return await bffClient.getSessions();
+    } catch (error) {
+      return rejectWithValue((error as Error).message);
+    }
+  }
+);
+
+export const createSessionAsync = createAsyncThunk(
+  'sessions/createSessionAsync',
+  async (payload: { name: string; id?: string }, { rejectWithValue }) => {
+    try {
+      return await bffClient.createSession(payload.name, payload.id);
     } catch (error) {
       return rejectWithValue((error as Error).message);
     }
@@ -128,6 +135,14 @@ const sessionsSlice = createSlice({
         if (action.payload) {
           state.currentSessionId = action.payload;
         }
+      })
+      .addCase(createSessionAsync.fulfilled, (state, action) => {
+        state.sessions.unshift(action.payload);
+        state.currentSessionId = action.payload.id;
+        state.filteredSessions = applyFilter(state.sessions, state.searchTerm);
+      })
+      .addCase(createSessionAsync.rejected, (state, action) => {
+        state.error = action.payload as string;
       });
   },
 });
@@ -147,5 +162,6 @@ export const {
   updateSessionLastActive,
   clearError,
 } = sessionsSlice.actions;
+
 
 export default sessionsSlice.reducer;

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { MessageRole, MessageAttachment } from '../../domain/entities/Message';
+import { bffClient } from '../../infrastructure/api/bffClient';
 
 export interface ChatMessage {
   id: string;
@@ -34,19 +35,7 @@ export const sendMessage = createAsyncThunk(
   'chat/sendMessage',
   async (payload: SendMessagePayload, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/sessions/${payload.sessionId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: payload.content, attachments: payload.attachments }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.message ?? `Request failed with status ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data as ChatMessage;
+      return await bffClient.sendMessage(payload.sessionId, payload.content, payload.attachments);
     } catch (error) {
       return rejectWithValue((error as Error).message);
     }
@@ -57,12 +46,8 @@ export const loadMessages = createAsyncThunk(
   'chat/loadMessages',
   async (sessionId: string, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/sessions/${sessionId}/messages`);
-      if (!response.ok) {
-        throw new Error(`Failed to load messages: ${response.statusText}`);
-      }
-      const data = await response.json();
-      return { sessionId, messages: data as ChatMessage[] };
+      const messages = await bffClient.getMessages(sessionId);
+      return { sessionId, messages };
     } catch (error) {
       return rejectWithValue((error as Error).message);
     }

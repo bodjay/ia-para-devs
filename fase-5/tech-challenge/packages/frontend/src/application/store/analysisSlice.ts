@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { AnalysisStatus, AnalysisResult } from '../../domain/entities/Analysis';
+import { bffClient } from '../../infrastructure/api/bffClient';
 
 export interface AnalysisState {
   analysisId: string | null;
@@ -34,37 +35,19 @@ export const uploadAndAnalyzeDiagram = createAsyncThunk(
     try {
       dispatch(setStatus('uploading'));
 
-      const formData = new FormData();
-      formData.append('file', payload.file);
-      formData.append('sessionId', payload.sessionId);
+      const { diagramId, analysisId } = await bffClient.uploadDiagram(
+        payload.file,
+        payload.sessionId
+      );
 
-      const uploadResponse = await fetch('/api/diagrams/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json().catch(() => ({ message: uploadResponse.statusText }));
-        throw new Error(errorData.message ?? `Upload failed with status ${uploadResponse.status}`);
-      }
-
-      const uploadData = await uploadResponse.json();
-      dispatch(setDiagramId(uploadData.diagramId));
+      dispatch(setDiagramId(diagramId));
       dispatch(setStatus('processing'));
 
-      const analysisResponse = await fetch(`/api/analysis/${uploadData.analysisId}`);
-      if (!analysisResponse.ok) {
-        throw new Error(`Analysis fetch failed: ${analysisResponse.statusText}`);
-      }
+      const analysis = await bffClient.pollAnalysis(analysisId);
 
       dispatch(setStatus('responding'));
-      const analysisData = await analysisResponse.json();
 
-      return {
-        diagramId: uploadData.diagramId,
-        analysisId: uploadData.analysisId,
-        analysis: analysisData.result as AnalysisResult,
-      } as UploadDiagramResult;
+      return { diagramId, analysisId, analysis } as UploadDiagramResult;
     } catch (error) {
       return rejectWithValue((error as Error).message);
     }
