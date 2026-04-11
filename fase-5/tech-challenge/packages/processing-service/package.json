@@ -9,6 +9,7 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@aws-sdk/client-textract": "^3.1029.0",
     "kafkajs": "^2.2.0",
     "mongoose": "^8.0.0",
     "uuid": "^9.0.0",

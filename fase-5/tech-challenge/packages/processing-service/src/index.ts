@@ -2,6 +2,7 @@ import { Kafka } from 'kafkajs';
 import { connectMongo } from './infrastructure/db/MongoConnection';
 import { ProcessingJobRepository } from './infrastructure/persistence/ProcessingJobRepository';
 import { DiagramExtractionAgentClient } from './infrastructure/agents/DiagramExtractionAgentClient';
+import { TextractAdapter } from './infrastructure/textract/TextractAdapter';
 import { DiagramCreatedConsumer } from './infrastructure/kafka/DiagramCreatedConsumer';
 import { DiagramProcessedProducer } from './infrastructure/kafka/DiagramProcessedProducer';
 import { ProcessDiagramUseCase } from './application/use-cases/ProcessDiagramUseCase';
@@ -9,6 +10,7 @@ import { ProcessDiagramUseCase } from './application/use-cases/ProcessDiagramUse
 const MONGO_URI = process.env.MONGO_URI ?? 'mongodb://localhost:27017/arch-analyzer-processing';
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(',');
 const EXTRACTION_AGENT_URL = process.env.EXTRACTION_AGENT_URL ?? 'http://localhost:3003';
+const AWS_REGION = process.env.AWS_REGION ?? 'us-east-1';
 
 async function bootstrap(): Promise<void> {
   await connectMongo(MONGO_URI);
@@ -16,11 +18,12 @@ async function bootstrap(): Promise<void> {
   const kafka = new Kafka({ clientId: 'processing-service', brokers: KAFKA_BROKERS });
 
   const repository = new ProcessingJobRepository();
+  const textractAdapter = new TextractAdapter(AWS_REGION);
   const agentClient = new DiagramExtractionAgentClient(EXTRACTION_AGENT_URL);
   const producer = new DiagramProcessedProducer(kafka);
   await producer.connect();
 
-  const processUseCase = new ProcessDiagramUseCase(repository, agentClient, producer);
+  const processUseCase = new ProcessDiagramUseCase(repository, textractAdapter, agentClient, producer);
   const consumer = new DiagramCreatedConsumer(kafka, processUseCase);
 
   await consumer.connect();

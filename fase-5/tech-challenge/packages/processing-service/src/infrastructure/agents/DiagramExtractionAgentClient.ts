@@ -4,6 +4,7 @@ export interface ExtractionAgentInput {
     fileType: string;
     storageUrl: string;
   };
+  extractedText?: string;
   options: {
     detectText: boolean;
     detectShapes: boolean;

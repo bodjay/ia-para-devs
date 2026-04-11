@@ -81,7 +81,8 @@ describe('ExtractDiagramUseCase', () => {
       expect(result.elements.length).toBeGreaterThan(0);
       expect(claudeVisionClient.extractFromUrl).toHaveBeenCalledWith(
         'https://storage.example.com/diagrams/architecture.png',
-        'image/png'
+        'image/png',
+        undefined
       );
     });
 
@@ -91,7 +92,8 @@ describe('ExtractDiagramUseCase', () => {
       expect(result.status).toBe('processed');
       expect(claudeVisionClient.extractFromUrl).toHaveBeenCalledWith(
         expect.any(String),
-        'image/jpeg'
+        'image/jpeg',
+        undefined
       );
     });
 
@@ -101,7 +103,8 @@ describe('ExtractDiagramUseCase', () => {
       expect(result.status).toBe('processed');
       expect(claudeVisionClient.extractFromUrl).toHaveBeenCalledWith(
         expect.any(String),
-        'application/pdf'
+        'application/pdf',
+        undefined
       );
     });
   });
@@ -112,7 +115,26 @@ describe('ExtractDiagramUseCase', () => {
 
       expect(claudeVisionClient.extractFromUrl).toHaveBeenCalledWith(
         'https://storage.example.com/diagrams/architecture.png',
-        expect.any(String)
+        expect.any(String),
+        undefined
+      );
+    });
+
+    it('should pass pre-extracted text to Claude when provided in input', async () => {
+      const inputWithText: ExtractDiagramInput = {
+        ...makePngInput(),
+        payload: {
+          ...makePngInput().payload,
+          extractedText: 'API Gateway User Service MongoDB',
+        },
+      };
+
+      await useCase.execute(inputWithText);
+
+      expect(claudeVisionClient.extractFromUrl).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        'API Gateway User Service MongoDB'
       );
     });
 

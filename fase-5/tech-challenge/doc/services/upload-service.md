@@ -1,5 +1,8 @@
 
 ### upload-service
+
+#### AWS SDK Reference
+- [@aws-sdk/client-s3 API Reference](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-client-s3/)
 O upload-service é responsável por receber arquivos de diagramas (imagem ou PDF) enviados pelo cliente, validar seus metadados, armazenar o arquivo em um bucket (S3), sakvar seu link de download em umem uma coleção e iniciar o fluxo assíncrono de processamento;
 
 #### POST /upload

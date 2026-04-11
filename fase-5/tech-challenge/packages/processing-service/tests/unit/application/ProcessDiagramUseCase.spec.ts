@@ -6,6 +6,7 @@ import {
   ExtractionAgentOutput,
   AgentTimeoutError,
 } from '../../../src/infrastructure/agents/DiagramExtractionAgentClient';
+import { ITextractAdapter } from '../../../src/infrastructure/textract/TextractAdapter';
 import { DiagramProcessedProducer } from '../../../src/infrastructure/kafka/DiagramProcessedProducer';
 import { DiagramCreatedEvent } from '../../../src/domain/use-cases/IProcessDiagramUseCase';
 import { ProcessingJob } from '../../../src/domain/entities/ProcessingJob';
@@ -18,7 +19,7 @@ const makeDiagramCreatedEvent = (overrides: Partial<DiagramCreatedEvent> = {}): 
     fileName: 'microservices.png',
     fileType: 'image/png',
     fileSize: 512000,
-    storageUrl: 'https://storage.example.com/diagrams/microservices.png',
+    storageUrl: 'https://arch-bucket.s3.us-east-1.amazonaws.com/microservices.png',
   },
   user: {
     id: 'user-xyz-456',
@@ -61,6 +62,10 @@ const makeMockRepository = (): jest.Mocked<IProcessingJobRepository> => ({
   update: jest.fn().mockImplementation((job: ProcessingJob) => Promise.resolve(job)),
 });
 
+const makeMockTextractAdapter = (extractedText = 'API Gateway User DB'): jest.Mocked<ITextractAdapter> => ({
+  extractText: jest.fn().mockResolvedValue(extractedText),
+});
+
 const makeMockAgentClient = (output = makeSuccessfulAgentOutput()): jest.Mocked<IDiagramExtractionAgentClient> => ({
   extract: jest.fn().mockResolvedValue(output),
 });
@@ -73,7 +78,7 @@ const makeMockProducer = (): jest.Mocked<Pick<DiagramProcessedProducer, 'publish
       id: 'diagram-abc-123',
       fileName: 'microservices.png',
       fileType: 'image/png',
-      storageUrl: 'https://storage.example.com/diagrams/microservices.png',
+      storageUrl: 'https://arch-bucket.s3.us-east-1.amazonaws.com/microservices.png',
     },
     processing: { status: 'processed', extractedText: 'text', elements: [] },
   }),
@@ -81,19 +86,71 @@ const makeMockProducer = (): jest.Mocked<Pick<DiagramProcessedProducer, 'publish
 
 describe('ProcessDiagramUseCase', () => {
   let repository: jest.Mocked<IProcessingJobRepository>;
+  let textractAdapter: jest.Mocked<ITextractAdapter>;
   let agentClient: jest.Mocked<IDiagramExtractionAgentClient>;
   let producer: jest.Mocked<DiagramProcessedProducer>;
   let useCase: ProcessDiagramUseCase;
 
   beforeEach(() => {
     repository = makeMockRepository();
+    textractAdapter = makeMockTextractAdapter();
     agentClient = makeMockAgentClient();
     producer = makeMockProducer() as unknown as jest.Mocked<DiagramProcessedProducer>;
-    useCase = new ProcessDiagramUseCase(repository, agentClient, producer);
+    useCase = new ProcessDiagramUseCase(repository, textractAdapter, agentClient, producer);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('should call Textract before diagram-extraction-agent', () => {
+    it('calls textractAdapter.extractText with the storageUrl', async () => {
+      const event = makeDiagramCreatedEvent();
+
+      await useCase.execute(event);
+
+      expect(textractAdapter.extractText).toHaveBeenCalledTimes(1);
+      expect(textractAdapter.extractText).toHaveBeenCalledWith(event.diagram.storageUrl);
+    });
+
+    it('calls agent after textract', async () => {
+      const callOrder: string[] = [];
+      textractAdapter.extractText.mockImplementation(async () => {
+        callOrder.push('textract');
+        return 'raw text';
+      });
+      agentClient.extract.mockImplementation(async () => {
+        callOrder.push('agent');
+        return makeSuccessfulAgentOutput();
+      });
+
+      await useCase.execute(makeDiagramCreatedEvent());
+
+      expect(callOrder).toEqual(['textract', 'agent']);
+    });
+  });
+
+  describe('should pass extractedText from Textract to agent', () => {
+    it('passes textract output as extractedText in agent input', async () => {
+      textractAdapter.extractText.mockResolvedValue('API Gateway User Service MongoDB');
+
+      await useCase.execute(makeDiagramCreatedEvent());
+
+      const agentInput: ExtractionAgentInput = agentClient.extract.mock.calls[0][0];
+      expect(agentInput.extractedText).toBe('API Gateway User Service MongoDB');
+    });
+  });
+
+  describe('should proceed without extractedText when Textract fails', () => {
+    it('still calls agent with empty extractedText when textract throws', async () => {
+      textractAdapter.extractText.mockRejectedValue(new Error('InvalidS3ObjectException'));
+
+      await useCase.execute(makeDiagramCreatedEvent());
+
+      expect(agentClient.extract).toHaveBeenCalledTimes(1);
+      const agentInput: ExtractionAgentInput = agentClient.extract.mock.calls[0][0];
+      expect(agentInput.extractedText).toBe('');
+    });
   });
 
   describe('should process diagram.created event and invoke diagram-extraction-agent', () => {
@@ -190,7 +247,7 @@ describe('ProcessDiagramUseCase', () => {
   });
 
   describe('should include elements with type and label in published event', () => {
-    it('each element in published event has type and label', async () => {
+    it('each element in published event has type, label, and position', async () => {
       await useCase.execute(makeDiagramCreatedEvent());
 
       const publishPayload = producer.publishDiagramProcessed.mock.calls[0][0];
@@ -226,9 +283,7 @@ describe('ProcessDiagramUseCase', () => {
     });
 
     it('saves job with failed status on timeout', async () => {
-      agentClient.extract.mockRejectedValue(
-        new AgentTimeoutError('timeout')
-      );
+      agentClient.extract.mockRejectedValue(new AgentTimeoutError('timeout'));
 
       await useCase.execute(makeDiagramCreatedEvent());
 
@@ -278,20 +333,18 @@ describe('ProcessDiagramUseCase', () => {
   });
 
   describe('should generate new eventId for diagram.processed event', () => {
-    it('producer generates a new eventId (not from the original event)', async () => {
+    it('producer is called with diagram data from source event', async () => {
       const sourceEvent = makeDiagramCreatedEvent();
 
       await useCase.execute(sourceEvent);
 
-      // The producer is responsible for generating the new eventId
       expect(producer.publishDiagramProcessed).toHaveBeenCalledTimes(1);
-      // We verify the producer was called - eventId generation is the producer's responsibility
       const publishPayload = producer.publishDiagramProcessed.mock.calls[0][0];
       expect(publishPayload).toBeDefined();
     });
   });
 
-  describe('should set timestamp to current ISO-8601 in published event', () => {
+  describe('should set diagram info from source event in published payload', () => {
     it('diagram info matches the source event diagram', async () => {
       const event = makeDiagramCreatedEvent();
 

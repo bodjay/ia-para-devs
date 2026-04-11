@@ -12,7 +12,8 @@ export class ExtractDiagramUseCase implements IExtractDiagramUseCase {
     try {
       const claudeResponse = await this.claudeVisionClient.extractFromUrl(
         diagram.storageUrl,
-        diagram.fileType
+        diagram.fileType,
+        input.payload.extractedText
       );
 
       const elements = claudeResponse.elements.map(

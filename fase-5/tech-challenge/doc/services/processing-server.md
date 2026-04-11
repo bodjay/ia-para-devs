@@ -1,5 +1,8 @@
 
 ### processing-service
+
+#### AWS SDK Reference
+- [@aws-sdk/client-textract API Reference](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-client-textract/)
 Realiza a extração de informações estruturais do diagrama — como textos, componentes e suas possíveis classificações — transformando dados não estruturados em uma representação intermediária compreensível pela plataforma
 
 #### Consumer — diagram.processed

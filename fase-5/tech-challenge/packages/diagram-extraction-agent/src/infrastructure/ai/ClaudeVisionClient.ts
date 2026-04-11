@@ -27,8 +27,8 @@ export class ClaudeVisionClient {
     this.client = new Anthropic({ apiKey });
   }
 
-  async extractFromUrl(storageUrl: string, fileType: string): Promise<ClaudeExtractionResponse> {
-    const prompt = this.buildExtractionPrompt(fileType);
+  async extractFromUrl(storageUrl: string, fileType: string, extractedText?: string): Promise<ClaudeExtractionResponse> {
+    const prompt = this.buildExtractionPrompt(fileType, extractedText);
 
     const response = await this.client.messages.create({
       model: this.model,
@@ -61,8 +61,12 @@ export class ClaudeVisionClient {
     return JSON.parse(textContent.text) as ClaudeExtractionResponse;
   }
 
-  private buildExtractionPrompt(fileType: string): string {
-    return `Analyze this architecture diagram (${fileType}) and extract all elements and connections.
+  private buildExtractionPrompt(fileType: string, extractedText?: string): string {
+    const preExtracted = extractedText
+      ? `\nPre-extracted text from the document (use this to improve accuracy):\n${extractedText}\n`
+      : '';
+
+    return `Analyze this architecture diagram (${fileType}) and extract all elements and connections.${preExtracted}
 Return a JSON object with:
 - extractedText: all visible text in the diagram
 - elements: array of { id, label, type (microservice|database|broker|client|unknown), confidence (0-1), boundingBox { x, y, width, height } }

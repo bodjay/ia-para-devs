@@ -10,10 +10,12 @@ import {
   AgentTimeoutError,
 } from '../../infrastructure/agents/DiagramExtractionAgentClient';
 import { DiagramProcessedProducer } from '../../infrastructure/kafka/DiagramProcessedProducer';
+import { ITextractAdapter } from '../../infrastructure/textract/TextractAdapter';
 
 export class ProcessDiagramUseCase implements IProcessDiagramUseCase {
   constructor(
     private readonly repository: IProcessingJobRepository,
+    private readonly textractAdapter: ITextractAdapter,
     private readonly agentClient: IDiagramExtractionAgentClient,
     private readonly producer: DiagramProcessedProducer
   ) {}
@@ -39,12 +41,23 @@ export class ProcessDiagramUseCase implements IProcessDiagramUseCase {
     await this.repository.save(job);
 
     try {
+      let extractedText = '';
+      try {
+        extractedText = await this.textractAdapter.extractText(event.diagram.storageUrl);
+      } catch (textractError) {
+        console.warn(
+          'Textract extraction failed, proceeding without pre-extracted text:',
+          (textractError as Error).message
+        );
+      }
+
       const agentResult = await this.agentClient.extract({
         diagram: {
           id: event.diagram.id,
           fileType: event.diagram.fileType,
           storageUrl: event.diagram.storageUrl,
         },
+        extractedText,
         options: {
           detectText: true,
           detectShapes: true,
