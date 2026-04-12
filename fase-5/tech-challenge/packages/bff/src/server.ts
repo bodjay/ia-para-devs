@@ -5,6 +5,7 @@ import { AnalysisRepository } from './infrastructure/persistence/AnalysisReposit
 import { SessionRepository } from './infrastructure/persistence/SessionRepository';
 import { MessageRepository } from './infrastructure/persistence/MessageRepository';
 import { AnalysisCompletedConsumer } from './infrastructure/kafka/AnalysisCompletedConsumer';
+import { OllamaConversationClient } from './infrastructure/ai/OllamaConversationClient';
 import { AnalysisController } from './presentation/controllers/AnalysisController';
 import { SessionController } from './presentation/controllers/SessionController';
 import { CreateAnalysisUseCase } from './application/use-cases/CreateAnalysisUseCase';
@@ -40,7 +41,8 @@ async function bootstrap(): Promise<void> {
   const listSessionsUseCase = new ListSessionsUseCase(sessionRepository);
   const createSessionUseCase = new CreateSessionUseCase(sessionRepository);
   const getMessagesUseCase = new GetMessagesUseCase(messageRepository);
-  const createMessageUseCase = new CreateMessageUseCase(messageRepository, sessionRepository);
+  const conversationClient = new OllamaConversationClient();
+  const createMessageUseCase = new CreateMessageUseCase(messageRepository, sessionRepository, analysisRepository, conversationClient);
 
   // Controllers
   const analysisController = new AnalysisController(createAnalysisUseCase, getAnalysisUseCase);
