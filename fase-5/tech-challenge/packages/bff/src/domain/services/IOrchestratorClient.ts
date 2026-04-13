@@ -5,10 +5,15 @@ export interface ConversationMessage {
   content: string;
 }
 
-export interface IConversationClient {
+export interface OrchestratorResponse {
+  response: string;
+  route: string;
+}
+
+export interface IOrchestratorClient {
   chat(
-    analysisContext: AnalysisResult,
+    analysisContext: AnalysisResult | null,
     question: string,
     history: ConversationMessage[]
-  ): Promise<string>;
+  ): Promise<OrchestratorResponse>;
 }

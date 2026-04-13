@@ -15,7 +15,10 @@ const AWS_REGION = process.env.AWS_REGION ?? 'us-east-1';
 async function bootstrap(): Promise<void> {
   await connectMongo(MONGO_URI);
 
-  const kafka = new Kafka({ clientId: 'upload-service', brokers: KAFKA_BROKERS });
+  const kafka = new Kafka({
+    clientId: 'upload-service',
+    brokers: KAFKA_BROKERS,
+  });
   const producer = new DiagramEventProducer(kafka);
   await producer.connect();
 

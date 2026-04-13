@@ -5,7 +5,7 @@ import { AnalysisRepository } from './infrastructure/persistence/AnalysisReposit
 import { SessionRepository } from './infrastructure/persistence/SessionRepository';
 import { MessageRepository } from './infrastructure/persistence/MessageRepository';
 import { AnalysisCompletedConsumer } from './infrastructure/kafka/AnalysisCompletedConsumer';
-import { OllamaConversationClient } from './infrastructure/ai/OllamaConversationClient';
+import { OrchestratorClient } from './infrastructure/orchestrator/OrchestratorClient';
 import { AnalysisController } from './presentation/controllers/AnalysisController';
 import { SessionController } from './presentation/controllers/SessionController';
 import { CreateAnalysisUseCase } from './application/use-cases/CreateAnalysisUseCase';
@@ -26,7 +26,10 @@ async function bootstrap(): Promise<void> {
   const analysisRepository = new AnalysisRepository();
 
   // Kafka consumer — updates analysis status when report-service finishes
-  const kafka = new Kafka({ clientId: 'bff', brokers: KAFKA_BROKERS });
+  const kafka = new Kafka({
+    clientId: 'bff',
+    brokers: KAFKA_BROKERS,    
+  });
   const analysisCompletedConsumer = new AnalysisCompletedConsumer(kafka, analysisRepository);
   await analysisCompletedConsumer.connect();
   await analysisCompletedConsumer.start();
@@ -41,8 +44,8 @@ async function bootstrap(): Promise<void> {
   const listSessionsUseCase = new ListSessionsUseCase(sessionRepository);
   const createSessionUseCase = new CreateSessionUseCase(sessionRepository);
   const getMessagesUseCase = new GetMessagesUseCase(messageRepository);
-  const conversationClient = new OllamaConversationClient();
-  const createMessageUseCase = new CreateMessageUseCase(messageRepository, sessionRepository, analysisRepository, conversationClient);
+  const orchestratorClient = new OrchestratorClient();
+  const createMessageUseCase = new CreateMessageUseCase(messageRepository, sessionRepository, analysisRepository, orchestratorClient);
 
   // Controllers
   const analysisController = new AnalysisController(createAnalysisUseCase, getAnalysisUseCase);

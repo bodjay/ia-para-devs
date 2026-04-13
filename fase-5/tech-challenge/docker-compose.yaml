@@ -7,6 +7,9 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 10
+      ZOOKEEPER_SYNC_LIMIT: 5
+      ZOOKEEPER_MAX_SESSION_TIMEOUT: 60000
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "2181"]
       interval: 10s
@@ -30,6 +33,10 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: 30000
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 20000
+      KAFKA_GROUP_MIN_SESSION_TIMEOUT_MS: 6000
+      KAFKA_GROUP_MAX_SESSION_TIMEOUT_MS: 600000
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 15s
@@ -60,6 +67,18 @@ services:
     restart: unless-stopped
 
   # ─── AI Agents ───────────────────────────────────────────────────────────────
+
+  orchestrator-agent:
+    build:
+      context: .
+      dockerfile: packages/orchestrator-agent/Dockerfile
+    ports:
+      - "3005:3005"
+    environment:
+      PORT: 3005
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+    restart: unless-stopped
 
   diagram-extraction-agent:
     build:
@@ -101,13 +120,14 @@ services:
       PORT: 3001
       MONGO_URI: mongodb://mongo:27017/arch-analyzer-bff
       KAFKA_BROKERS: kafka:9092
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      ORCHESTRATOR_URL: http://orchestrator-agent:3005
     depends_on:
       mongo:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      orchestrator-agent:
+        condition: service_started
     restart: unless-stopped
 
   upload-service:

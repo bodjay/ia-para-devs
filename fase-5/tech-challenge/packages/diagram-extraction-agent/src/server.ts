@@ -16,7 +16,7 @@ const visionClient: IVisionClient =
 const extractUseCase = new ExtractDiagramUseCase(visionClient);
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 
 app.post('/extract', async (req: Request, res: Response) => {
   try {

@@ -36,6 +36,14 @@ export class ProcessDiagramUseCase implements IProcessDiagramUseCase {
       return;
     }
 
+    const existingJob = await this.repository.findByDiagramId(event.diagram.id);
+    if (existingJob && existingJob.status !== 'failed') {
+      console.warn(
+        `[ProcessDiagramUseCase] Duplicate delivery for diagram ${event.diagram.id} — job already ${existingJob.status}, skipping`
+      );
+      return;
+    }
+
     const job = new ProcessingJob({ diagramId: event.diagram.id });
     job.start();
     await this.repository.save(job);

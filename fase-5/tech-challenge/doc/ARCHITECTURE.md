@@ -11,36 +11,58 @@ flowchart TB
     %% BFF (microservice)
     BFF["bff"]
 
+    %% Orchestrator
+    OA["orchestrator-agent (LangGraph)"]
+
     %% Broker
     KAFKA["broker-service (Kafka)"]
 
     %% Microservices
-    PS["process-service"]
+    PS["processing-service"]
     RS["report-service"]
-    AS["analyze-service"]
-    AA["architecture-agent"]
+    US["upload-service"]
+
+    %% AI Agents
+    DEA["diagram-extraction-agent"]
+    AAA["architecture-analysis-agent"]
 
     %% Databases
-    DBP[("processes")]
-    DBR[("reports")]
-    DBA[("analysis")]
+    DBB[("bff-db")]
+    DBP[("processing-db")]
+    DBR[("report-db")]
+    DBU[("upload-db")]
 
     %% Fluxos
     FE --> BFF
+    BFF -->|POST /analysis/chat| OA
 
-    BFF --> PS
-    BFF --> RS
-    BFF --> AS
-    
-    RS --> AA
+    subgraph OrchestratorGraph ["LangGraph StateGraph"]
+        Router["router_node (LLM classifier)"]
+        Conv["conversation_node"]
+        Risk["risk_node"]
+        Rec["recommendation_node"]
 
+        Router -->|chat| Conv
+        Router -->|risk_analysis| Risk
+        Router -->|recommendations| Rec
+    end
+
+    OA --> OrchestratorGraph
+
+    BFF --> US
+    US --> KAFKA
+    KAFKA --> PS
+    PS --> DEA
     PS --> KAFKA
+    KAFKA --> RS
+    RS --> AAA
     RS --> KAFKA
-    AS --> KAFKA
+    KAFKA --> BFF
 
+    BFF --> DBB
     PS --> DBP
     RS --> DBR
-    AS --> DBA
+    US --> DBU
 ````
 
 ##  Estrutura de pastas

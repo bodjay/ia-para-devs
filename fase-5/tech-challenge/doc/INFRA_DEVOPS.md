@@ -12,6 +12,7 @@ O arquivo `docker-compose.yaml` na raiz do projeto orquestra todos os serviços 
 | `kafka` | `confluentinc/cp-kafka:7.6.0` | 9092 | Message broker |
 | `mongo` | `mongo:7.0` | 27017 | Banco de dados (compartilhado entre serviços) |
 | `ollama` | `ollama/ollama:latest` | 11434 | LLM local (profile: `ollama`) |
+| `orchestrator-agent` | build | 3005 | Orquestrador LangGraph — roteamento e chat com LLM |
 | `diagram-extraction-agent` | build | 3003 | Extração de elementos via Claude ou Ollama |
 | `architecture-analysis-agent` | build | 3004 | Análise de riscos via Claude ou Ollama |
 | `bff` | build | 3001 | API Gateway |

@@ -13,7 +13,10 @@ const ANALYSIS_AGENT_URL = process.env.ANALYSIS_AGENT_URL ?? 'http://localhost:3
 async function bootstrap(): Promise<void> {
   await connectMongo(MONGO_URI);
 
-  const kafka = new Kafka({ clientId: 'report-service', brokers: KAFKA_BROKERS });
+  const kafka = new Kafka({
+    clientId: 'report-service',
+    brokers: KAFKA_BROKERS,
+  });
 
   const repository = new ReportRepository();
   const agentClient = new ArchitectureAnalysisAgentClient(ANALYSIS_AGENT_URL);
