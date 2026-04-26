@@ -66,46 +66,49 @@ services:
       - ollama-data:/root/.ollama
     restart: unless-stopped
 
-  # ─── AI Agents ───────────────────────────────────────────────────────────────
+  # ─── AI Agents (Kafka-native workers) ────────────────────────────────────────
 
   orchestrator-agent:
     build:
       context: .
       dockerfile: packages/orchestrator-agent/Dockerfile
-    ports:
-      - "3005:3005"
     environment:
-      PORT: 3005
+      KAFKA_BROKERS: kafka:9092
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+    depends_on:
+      kafka:
+        condition: service_healthy
     restart: unless-stopped
 
   diagram-extraction-agent:
     build:
       context: .
       dockerfile: packages/diagram-extraction-agent/Dockerfile
-    ports:
-      - "3003:3003"
     environment:
-      PORT: 3003
+      KAFKA_BROKERS: kafka:9092
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       AI_PROVIDER: ${AI_PROVIDER:-ollama}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+    depends_on:
+      kafka:
+        condition: service_healthy
     restart: unless-stopped
 
   architecture-analysis-agent:
     build:
       context: .
       dockerfile: packages/architecture-analysis-agent/Dockerfile
-    ports:
-      - "3004:3004"
     environment:
-      PORT: 3004
+      KAFKA_BROKERS: kafka:9092
       AI_PROVIDER: ${AI_PROVIDER:-ollama}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    depends_on:
+      kafka:
+        condition: service_healthy
     restart: unless-stopped
 
   # ─── Backend Services ─────────────────────────────────────────────────────
@@ -120,14 +123,11 @@ services:
       PORT: 3001
       MONGO_URI: mongodb://mongo:27017/arch-analyzer-bff
       KAFKA_BROKERS: kafka:9092
-      ORCHESTRATOR_URL: http://orchestrator-agent:3005
     depends_on:
       mongo:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      orchestrator-agent:
-        condition: service_started
     restart: unless-stopped
 
   upload-service:
@@ -141,6 +141,8 @@ services:
       MONGO_URI: mongodb://mongo:27017/arch-analyzer-uploads
       KAFKA_BROKERS: kafka:9092
       UPLOAD_DIR: /app/uploads
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+      UPLOAD_SERVICE_PUBLIC_URL: ${UPLOAD_SERVICE_PUBLIC_URL:-http://upload-service:3002}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_REGION: ${AWS_REGION:-us-east-1}
@@ -152,44 +154,6 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-    restart: unless-stopped
-
-  processing-service:
-    build:
-      context: .
-      dockerfile: packages/processing-service/Dockerfile
-    environment:
-      MONGO_URI: mongodb://mongo:27017/arch-analyzer-processing
-      KAFKA_BROKERS: kafka:9092
-      EXTRACTION_AGENT_URL: http://diagram-extraction-agent:3003
-      EXTRACTION_AGENT_TIMEOUT_MS: ${EXTRACTION_AGENT_TIMEOUT_MS:-360000}
-      AWS_REGION: ${AWS_REGION:-us-east-1}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-    depends_on:
-      mongo:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      diagram-extraction-agent:
-        condition: service_started
-    restart: unless-stopped
-
-  report-service:
-    build:
-      context: .
-      dockerfile: packages/report-service/Dockerfile
-    environment:
-      MONGO_URI: mongodb://mongo:27017/arch-analyzer-reports
-      KAFKA_BROKERS: kafka:9092
-      ANALYSIS_AGENT_URL: http://architecture-analysis-agent:3004
-    depends_on:
-      mongo:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-      architecture-analysis-agent:
-        condition: service_started
     restart: unless-stopped
 
   # ─── Frontend ────────────────────────────────────────────────────────────────

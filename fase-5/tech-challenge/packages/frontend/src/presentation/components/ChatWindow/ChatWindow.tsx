@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   Box,
   TextField,
@@ -11,9 +11,10 @@ import {
 import SendIcon from '@mui/icons-material/Send';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../../application/store';
-import { sendMessage } from '../../../application/store/chatSlice';
-import { ChatMessage } from '../../../application/store/chatSlice';
+import { ChatMessage, receiveMessage, setAwaitingResponse, setChatError } from '../../../application/store/chatSlice';
 import { AnalysisResult } from '../../../domain/entities/Analysis';
+import { ChatWebSocketClient, WebSocketEvent } from '../../../infrastructure/ws/ChatWebSocketClient';
+import ThinkingIndicator from '../chat/ThinkingIndicator';
 
 export interface ChatWindowProps {
   sessionId: string;
@@ -34,25 +35,55 @@ const priorityColor: Record<string, 'error' | 'warning' | 'success'> = {
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, analysisResult }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { messages, sending, error } = useSelector((state: RootState) => state.chat);
+  const { messages, awaitingResponse, error } = useSelector((state: RootState) => state.chat);
   const { status } = useSelector((state: RootState) => state.analysis);
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const wsClientRef = useRef<ChatWebSocketClient | null>(null);
 
   const isProcessing = status === 'uploading' || status === 'processing';
-  const isResponding = status === 'responding' || sending;
-  const isDisabled = isProcessing || isResponding;
+  const isDisabled = isProcessing || awaitingResponse;
+
+  const handleWebSocketEvent = useCallback(
+    (event: WebSocketEvent) => {
+      if (event.type === 'user_message' || event.type === 'assistant_message') {
+        if (event.messageId && event.content && event.role && event.timestamp) {
+          dispatch(
+            receiveMessage({
+              id: event.messageId,
+              sessionId,
+              content: event.content,
+              role: event.role,
+              timestamp: event.timestamp,
+            })
+          );
+        }
+      } else if (event.type === 'error') {
+        dispatch(setChatError(event.message ?? 'Erro ao processar mensagem'));
+      }
+    },
+    [dispatch, sessionId]
+  );
+
+  useEffect(() => {
+    wsClientRef.current = new ChatWebSocketClient(sessionId, handleWebSocketEvent);
+    return () => {
+      wsClientRef.current?.destroy();
+      wsClientRef.current = null;
+    };
+  }, [sessionId, handleWebSocketEvent]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, awaitingResponse]);
 
   const handleSend = () => {
     const content = inputValue.trim();
-    if (!content || isDisabled) return;
+    if (!content || isDisabled || !wsClientRef.current) return;
 
     setInputValue('');
-    dispatch(sendMessage({ sessionId, content }));
+    dispatch(setAwaitingResponse(true));
+    wsClientRef.current.send(content);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -121,20 +152,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, analysisResult }) =>
           </Box>
         )}
 
-        {isResponding && !isProcessing && (
-          <Box
-            display="flex"
-            alignItems="center"
-            gap={1}
-            mt={1}
-            data-testid="typing-indicator"
-          >
-            <CircularProgress size={16} />
-            <Typography variant="body2" color="text.secondary">
-              Assistente está digitando...
-            </Typography>
-          </Box>
-        )}
+        {awaitingResponse && !isProcessing && <ThinkingIndicator />}
 
         {/* Analysis result display */}
         {analysisResult && (
@@ -221,7 +239,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ sessionId, analysisResult }) =>
           fullWidth
           multiline
           maxRows={4}
-          placeholder="Digite sua pergunta..."
+          placeholder={awaitingResponse ? 'Aguardando resposta...' : 'Digite sua pergunta...'}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
