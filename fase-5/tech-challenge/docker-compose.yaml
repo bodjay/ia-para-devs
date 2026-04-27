@@ -156,6 +156,42 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  processing-service:
+    build:
+      context: .
+      dockerfile: packages/processing-service/Dockerfile
+    environment:
+      MONGO_URI: mongodb://mongo:27017/arch-analyzer-processing
+      KAFKA_BROKERS: kafka:9092
+      EXTRACTION_AGENT_URL: http://diagram-extraction-agent:3003
+      EXTRACTION_AGENT_TIMEOUT_MS: 360000
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      KAFKAJS_NO_PARTITIONER_WARNING: 1
+    depends_on:
+      mongo:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+  report-service:
+    build:
+      context: .
+      dockerfile: packages/report-service/Dockerfile
+    environment:
+      MONGO_URI: mongodb://mongo:27017/arch-analyzer-reports
+      KAFKA_BROKERS: kafka:9092
+      ANALYSIS_AGENT_URL: http://architecture-analysis-agent:3004
+      KAFKAJS_NO_PARTITIONER_WARNING: 1
+    depends_on:
+      mongo:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ─── Frontend ────────────────────────────────────────────────────────────────
 
   frontend:

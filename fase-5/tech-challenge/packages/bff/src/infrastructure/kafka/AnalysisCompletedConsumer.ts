@@ -63,6 +63,11 @@ export class AnalysisCompletedConsumer {
           return;
         }
 
+        if (analysis.status === 'completed') {
+          console.warn(`[BFF] Skipping duplicate event for analysis ${analysis.analysisId} (already completed)`);
+          return;
+        }
+
         try {
           if (analysis.status === 'pending') {
             analysis.startProcessing();

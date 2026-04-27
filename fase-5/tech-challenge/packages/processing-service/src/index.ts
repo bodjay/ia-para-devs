@@ -16,7 +16,12 @@ const AWS_REGION = process.env.AWS_REGION ?? 'us-east-1';
 async function bootstrap(): Promise<void> {
   await connectMongo(MONGO_URI);
 
-  const kafka = new Kafka({ clientId: 'processing-service', brokers: KAFKA_BROKERS });
+  const kafka = new Kafka({
+    clientId: 'processing-service',
+    brokers: KAFKA_BROKERS,
+    requestTimeout: 60000,
+    retry: { retries: 5 },
+  });
 
   const repository = new ProcessingJobRepository();
   const textractAdapter = new TextractAdapter(AWS_REGION);

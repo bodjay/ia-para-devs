@@ -16,6 +16,8 @@ async function bootstrap(): Promise<void> {
   const kafka = new Kafka({
     clientId: 'report-service',
     brokers: KAFKA_BROKERS,
+    requestTimeout: 60000,
+    retry: { retries: 5 },
   });
 
   const repository = new ReportRepository();

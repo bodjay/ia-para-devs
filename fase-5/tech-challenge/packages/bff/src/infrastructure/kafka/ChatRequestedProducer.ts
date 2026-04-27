@@ -25,7 +25,7 @@ export class ChatRequestedProducer {
   private producer: Producer;
   private readonly topic = 'chat.requested';
 
-  constructor(private readonly kafka: Kafka) {
+  constructor(kafka: Kafka) {
     this.producer = kafka.producer();
   }
 

@@ -89,7 +89,7 @@ export class WebSocketServer {
       timestamp: userMessage.timestamp.toISOString(),
     });
 
-    const immediateResponse = await this.resolveImmediateResponse(session, sessionId, msg.question);
+    const immediateResponse = await this.resolveImmediateResponse(session, msg.question);
 
     if (immediateResponse) {
       const assistantMessage = new Message({
@@ -133,7 +133,6 @@ export class WebSocketServer {
 
   private async resolveImmediateResponse(
     session: { analysisId?: string },
-    sessionId: string,
     _question: string
   ): Promise<string | null> {
     if (!session.analysisId) {

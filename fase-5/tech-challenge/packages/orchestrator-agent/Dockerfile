@@ -23,5 +23,4 @@ COPY --from=builder /app/packages/orchestrator-agent/dist ./dist
 COPY --from=common-builder /app/packages/common/dist ./node_modules/@arch-analyzer/common/dist
 COPY --from=common-builder /app/packages/common/package.json ./node_modules/@arch-analyzer/common/package.json
 RUN npm install --omit=dev
-EXPOSE 3005
-CMD ["node", "dist/src/server.js"]
+CMD ["node", "dist/src/index.js"]

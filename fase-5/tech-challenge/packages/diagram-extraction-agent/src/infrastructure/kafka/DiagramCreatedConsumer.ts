@@ -1,5 +1,6 @@
 import { Kafka, Consumer, EachMessagePayload } from 'kafkajs';
 import { ExtractDiagramUseCase } from '../../application/use-cases/ExtractDiagramUseCase';
+import { SupportedFileType } from '../../domain/use-cases/IExtractDiagramUseCase';
 import { DiagramProcessedProducer } from './DiagramProcessedProducer';
 
 interface DiagramCreatedEvent {
@@ -88,7 +89,7 @@ export class DiagramCreatedConsumer {
         diagram: {
           id: event.diagram.id,
           storageUrl: event.diagram.storageUrl,
-          fileType: event.diagram.fileType,
+          fileType: event.diagram.fileType as SupportedFileType,
         },
       },
     });
