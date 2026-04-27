@@ -6,19 +6,21 @@ import { createSessionRouter } from './presentation/routes/sessionRoutes';
 import { createDiagramRouter } from './presentation/routes/diagramRoutes';
 import { ICreateAnalysisUseCase } from './domain/use-cases/ICreateAnalysisUseCase';
 import { ISessionRepository } from './domain/repositories/ISessionRepository';
+import { IAnalysisRepository } from './domain/repositories/IAnalysisRepository';
 
 export function createApp(
   analysisController: AnalysisController,
   sessionController: SessionController,
   createAnalysisUseCase: ICreateAnalysisUseCase,
-  sessionRepository: ISessionRepository
+  sessionRepository: ISessionRepository,
+  analysisRepository: IAnalysisRepository
 ): express.Application {
   const app = express();
   app.use(express.json());
 
   app.use('/', createAnalysisRouter(analysisController));
   app.use('/', createSessionRouter(sessionController));
-  app.use('/', createDiagramRouter(createAnalysisUseCase, sessionRepository));
+  app.use('/', createDiagramRouter(createAnalysisUseCase, sessionRepository, analysisRepository));
 
   // Global error handler
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

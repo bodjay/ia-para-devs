@@ -11,11 +11,12 @@ import {
 import Sidebar from './presentation/components/Sidebar/Sidebar';
 import ChatWindow from './presentation/components/ChatWindow/ChatWindow';
 import FileUpload from './presentation/components/FileUpload/FileUpload';
+import DiagramSidebar from './presentation/components/DiagramSidebar/DiagramSidebar';
 import { FileUploadResult } from './presentation/components/FileUpload/FileUpload';
 import { RootState, AppDispatch } from './application/store';
 import { loadLastActiveSession } from './application/store/sessionsSlice';
 import { loadMessages } from './application/store/chatSlice';
-import { uploadAndAnalyzeDiagram, resetAnalysis } from './application/store/analysisSlice';
+import { uploadAndAnalyzeDiagram, resetAnalysis, loadAnalysis } from './application/store/analysisSlice';
 
 const theme = createTheme({
   palette: { mode: 'light' },
@@ -28,22 +29,28 @@ function AppContent(): React.ReactElement {
     (state: RootState) => state.sessions.currentSessionId
   );
   const { status, result } = useSelector((state: RootState) => state.analysis);
+  const sessions = useSelector((state: RootState) => state.sessions.sessions);
+  const currentSession = sessions.find((s) => s.id === currentSessionId);
+  const diagramId = useSelector((state: RootState) => state.analysis.diagramId);
 
   const isUploading = status === 'uploading' || status === 'processing';
-  const showUpload = status === 'idle';
+  const showUpload = status === 'idle' && !currentSession?.diagramId;
 
   // Load sessions on mount, select the most recently active
   useEffect(() => {
     dispatch(loadLastActiveSession());
   }, [dispatch]);
 
-  // When session changes, reload messages and reset analysis state
+  // When session changes, reload messages and restore analysis if session has one
   useEffect(() => {
-    if (currentSessionId) {
-      dispatch(resetAnalysis());
-      dispatch(loadMessages(currentSessionId));
+    if (!currentSessionId) return;
+    dispatch(resetAnalysis());
+    dispatch(loadMessages(currentSessionId));
+    const session = sessions.find((s) => s.id === currentSessionId);
+    if (session?.analysisId) {
+      dispatch(loadAnalysis(session.analysisId));
     }
-  }, [currentSessionId, dispatch]);
+  }, [currentSessionId, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUpload = ({ file }: FileUploadResult) => {
     if (!currentSessionId) return;
@@ -131,9 +138,14 @@ function AppContent(): React.ReactElement {
               </Box>
             </Collapse>
 
-            {/* Chat window — fills remaining height */}
-            <Box sx={{ flex: 1, overflow: 'hidden' }}>
-              <ChatWindow sessionId={currentSessionId} analysisResult={result} />
+            {/* Chat + diagram sidebar */}
+            <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', minHeight: 0 }}>
+              <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                <ChatWindow sessionId={currentSessionId} analysisResult={result} />
+              </Box>
+              {status === 'completed' && diagramId && (
+                <DiagramSidebar diagramId={diagramId} />
+              )}
             </Box>
           </>
         ) : (

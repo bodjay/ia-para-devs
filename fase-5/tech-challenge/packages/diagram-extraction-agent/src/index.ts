@@ -14,7 +14,7 @@ const visionClient: IVisionClient =
     ? new OllamaVisionClient()
     : new ClaudeVisionClient(process.env.ANTHROPIC_API_KEY ?? '');
 
-const kafka = new Kafka({ clientId: 'diagram-extraction-agent', brokers: KAFKA_BROKERS });
+const kafka = new Kafka({ clientId: 'diagram-extraction-agent', brokers: KAFKA_BROKERS, requestTimeout: 90000 });
 
 const extractUseCase = new ExtractDiagramUseCase(visionClient);
 const producer = new DiagramProcessedProducer(kafka);

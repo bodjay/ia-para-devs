@@ -74,7 +74,7 @@ async function bootstrap(): Promise<void> {
     createMessageUseCase
   );
 
-  const app = createApp(analysisController, sessionController, createAnalysisUseCase, sessionRepository);
+  const app = createApp(analysisController, sessionController, createAnalysisUseCase, sessionRepository, analysisRepository);
   const httpServer = http.createServer(app);
 
   const wsServer = new WebSocketServer(

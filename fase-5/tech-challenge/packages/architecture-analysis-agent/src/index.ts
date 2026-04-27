@@ -14,7 +14,7 @@ const analysisClient: IAnalysisClient =
     ? new ClaudeAnalysisClient(process.env.ANTHROPIC_API_KEY ?? '')
     : new OllamaAnalysisClient();
 
-const kafka = new Kafka({ clientId: 'architecture-analysis-agent', brokers: KAFKA_BROKERS });
+const kafka = new Kafka({ clientId: 'architecture-analysis-agent', brokers: KAFKA_BROKERS, requestTimeout: 90000 });
 
 const analyzeUseCase = new AnalyzeArchitectureUseCase(analysisClient);
 const producer = new AnalysisCompletedProducer(kafka);

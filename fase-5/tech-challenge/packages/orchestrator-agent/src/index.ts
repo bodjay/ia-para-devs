@@ -7,7 +7,7 @@ import { Logger } from '@arch-analyzer/common';
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(',');
 const logger = new Logger('orchestrator-agent');
 
-const kafka = new Kafka({ clientId: 'orchestrator-agent', brokers: KAFKA_BROKERS });
+const kafka = new Kafka({ clientId: 'orchestrator-agent', brokers: KAFKA_BROKERS, requestTimeout: 90000 });
 
 const orchestrateUseCase = new OrchestrateUseCase();
 const producer = new ChatRespondedProducer(kafka);
