@@ -15,12 +15,26 @@ Cada serviço possúi banco de dados próprio e testes automatizados.
 
 Provê capacidades de OCR e rastreamento de jobs para o `diagram-extraction-agent`.
 
-- **Porta:** `PROCESSING_PORT` (default: `3001`)
+- **Porta:** `PROCESSING_PORT` (default: `3001`; recomendado `3005` em dev local para não conflitar com a BFF)
+- **URL interna (Docker):** `http://processing-service:3001` — configurada via `PROCESSING_SERVICE_URL` no `diagram-extraction-agent`
 - **Banco:** MongoDB (`arch-analyzer-processing`)
 - **Endpoints:**
   - `POST /tools/ocr` — `{ s3Url }` → executa AWS Textract → `{ extractedText }`
   - `POST /tools/jobs` — `{ diagramId }` → cria ProcessingJob → `{ jobId }`
   - `PUT /tools/jobs/:id` — `{ status, extractedText?, elements?, connections?, error? }` → atualiza job
+
+**Schema de `DiagramElement`** (campo `elements` do PUT e do evento `diagram.processed`):
+
+```ts
+{
+  id: string;          // ID gerado pela IA — vincula ao fromElementId/toElementId das conexões
+  type: 'microservice' | 'database' | 'broker' | 'client' | 'unknown';
+  label: string;
+  position: { x: number; y: number };
+}
+```
+
+> O campo `id` é essencial para que o `architecture-analysis-agent` resolva as conexões (`fromElementId` / `toElementId`) publicadas no evento `diagram.processed`.
 
 #### report-service
 
