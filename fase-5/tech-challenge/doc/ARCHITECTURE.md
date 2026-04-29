@@ -78,13 +78,13 @@ flowchart TB
 
 ## Tópicos Kafka
 
-| Tópico              | Produtor                   | Consumidor                     | Descrição                                      |
-|---------------------|----------------------------|--------------------------------|------------------------------------------------|
-| `diagram.created`   | upload-service             | diagram-extraction-agent       | Dispara extração após upload                   |
-| `diagram.processed` | diagram-extraction-agent   | architecture-analysis-agent    | Dispara análise após extração                  |
-| `analysis.completed`| architecture-analysis-agent| bff                            | Atualiza status da análise no BFF              |
-| `chat.requested`    | bff                        | orchestrator-agent             | Envia pergunta do usuário ao orchestrator      |
-| `chat.responded`    | orchestrator-agent         | bff                            | Retorna resposta ao BFF para push via WebSocket|
+| Tópico              | Produtor                   | Consumidor                     | Descrição                                                                          |
+|---------------------|----------------------------|--------------------------------|------------------------------------------------------------------------------------|
+| `diagram.created`   | upload-service             | processing-service             | Dispara o pipeline de extração após upload                                         |
+| `diagram.processed` | processing-service         | architecture-analysis-agent    | Carrega elementos e conexões extraídos para disparo da análise                     |
+| `analysis.completed`| architecture-analysis-agent| bff                            | Atualiza status da análise no BFF                                                  |
+| `chat.requested`    | bff                        | orchestrator-agent             | Envia pergunta do usuário ao orchestrator                                          |
+| `chat.responded`    | orchestrator-agent         | bff                            | Retorna resposta ao BFF para push via WebSocket                                    |
 
 ## Comunicação BFF ↔ Frontend (Chat)
 
