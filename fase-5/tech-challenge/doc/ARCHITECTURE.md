@@ -9,14 +9,15 @@ flowchart TB
     %% Clients
     FE["frontend"]
 
-    %% BFF (microservice)
+    %% BFF
     BFF["bff"]
-
-    %% Broker
-    KAFKA["broker-service (Kafka)"]
 
     %% Upload
     US["upload-service"]
+
+    %% Tool Servers (HTTP)
+    PS["processing-service\n(tool server)"]
+    RS["report-service\n(tool server)"]
 
     %% AI Agents — Kafka-native workers
     OA["orchestrator-agent (LangGraph)"]
@@ -26,6 +27,8 @@ flowchart TB
     %% Databases
     DBB[("bff-db")]
     DBU[("upload-db")]
+    DBP[("processing-db")]
+    DBR[("report-db")]
 
     %% Tópicos Kafka
     T1(["diagram.created"])
@@ -38,9 +41,12 @@ flowchart TB
     FE -->|HTTP POST /diagrams/upload| BFF
     BFF -->|HTTP POST /upload| US
     US --> T1
-    T1 --> DEA
-    DEA --> T2
+    T1 --> PS
+    PS -->|HTTP POST /extract| DEA
+    DEA -->|HTTP /tools/jobs\n/tools/ocr| PS
+    PS --> T2
     T2 --> AAA
+    AAA -->|HTTP POST /tools/reports| RS
     AAA --> T3
     T3 --> BFF
 
@@ -66,6 +72,8 @@ flowchart TB
 
     BFF --> DBB
     US --> DBU
+    PS --> DBP
+    RS --> DBR
 ````
 
 ## Tópicos Kafka
