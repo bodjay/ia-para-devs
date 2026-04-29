@@ -8,11 +8,15 @@ import {
   AnalyzeArchitectureInput,
 } from '../../domain/use-cases/IAnalyzeArchitectureUseCase';
 import { IAnalysisClient } from '../../infrastructure/ai/IAnalysisClient';
+import { ReportServiceClient } from '../../infrastructure/tools/ReportServiceClient';
 
 const logger = new Logger('architecture-analysis-use-case');
 
 export class AnalyzeArchitectureUseCase implements IAnalyzeArchitectureUseCase {
-  constructor(private readonly analysisClient: IAnalysisClient) { }
+  constructor(
+    private readonly analysisClient: IAnalysisClient,
+    private readonly reportClient: ReportServiceClient
+  ) {}
 
   async execute(input: AnalyzeArchitectureInput): Promise<ArchitectureAnalysis> {
     const { payload } = input;
@@ -24,58 +28,53 @@ export class AnalyzeArchitectureUseCase implements IAnalyzeArchitectureUseCase {
     } as const;
 
     const analysisId = uuidv4();
-    logger.info('input received for architecture analysis', {
-      payload,
-      options,
-    });
+    logger.info('input received for architecture analysis', { payload, options });
     logger.info('starting architecture analysis', { analysisId, diagramId: payload.diagramId });
 
+    let analysis: ArchitectureAnalysis;
+
     try {
-      const claudeResponse = await this.analysisClient.analyze(
-        payload.elements,
-        payload.connections,
-        options
-      );
+      const response = await this.analysisClient.analyze(payload.elements, payload.connections, options);
 
       const risks = options.includeRisks
-        ? claudeResponse.risks.map(
-          (r) =>
-            new ArchitectureRisk({
-              title: r.title,
-              description: r.description,
-              severity: r.severity,
-              affectedComponents: r.affectedComponents,
-            })
-        )
+        ? response.risks.map(
+            (r) =>
+              new ArchitectureRisk({
+                title: r.title,
+                description: r.description,
+                severity: r.severity,
+                affectedComponents: r.affectedComponents,
+              })
+          )
         : [];
 
       const recommendations = options.includeRecommendations
-        ? claudeResponse.recommendations.map(
-          (rec) =>
-            new ArchitectureRecommendation({
-              title: rec.title,
-              description: rec.description,
-              priority: rec.priority,
-              relatedRisks: rec.relatedRisks,
-            })
-        )
+        ? response.recommendations.map(
+            (rec) =>
+              new ArchitectureRecommendation({
+                title: rec.title,
+                description: rec.description,
+                priority: rec.priority,
+                relatedRisks: rec.relatedRisks,
+              })
+          )
         : [];
 
-      return new ArchitectureAnalysis({
+      analysis = new ArchitectureAnalysis({
         analysisId,
         diagramId: payload.diagramId,
         status: 'completed',
-        components: claudeResponse.components,
-        architecturePatterns: claudeResponse.architecturePatterns,
+        components: response.components,
+        architecturePatterns: response.architecturePatterns,
         risks,
         recommendations,
-        summary: claudeResponse.summary,
+        summary: response.summary,
       });
     } catch (error) {
       const message = (error as Error).message ?? 'Unknown analysis error';
       logger.error('Analysis failed', { error: (error as Error).message, stack: (error as Error).stack });
 
-      return new ArchitectureAnalysis({
+      analysis = new ArchitectureAnalysis({
         analysisId,
         diagramId: payload.diagramId,
         status: 'failed',
@@ -87,5 +86,11 @@ export class AnalyzeArchitectureUseCase implements IAnalyzeArchitectureUseCase {
         error: { code: 'ANALYSIS_ERROR', message },
       });
     }
+
+    await this.reportClient.storeReport(analysis).catch((err) =>
+      logger.warn('Could not store report via tool', { error: (err as Error).message })
+    );
+
+    return analysis;
   }
 }

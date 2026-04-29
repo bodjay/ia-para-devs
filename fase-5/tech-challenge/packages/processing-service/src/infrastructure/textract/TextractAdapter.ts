@@ -26,7 +26,7 @@ export class TextractAdapter implements ITextractAdapter {
             Name: key,
           },
         },
-        FeatureTypes: ['LAYOUT'],
+        FeatureTypes: ['TABLES'],
       })
     );
     console.log('Textract found blocks:', response.Blocks?.length ?? 0);

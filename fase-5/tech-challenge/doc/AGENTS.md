@@ -1,6 +1,10 @@
 ## Agents
 
-Os agentes de IA são **Kafka-native workers**: consomem eventos de tópicos Kafka, executam inferência com LLM e publicam o resultado em outro tópico. Nenhum agente expõe endpoint HTTP em produção.
+Os agentes de IA são **Kafka-native workers**: consomem eventos de tópicos Kafka, executam inferência com LLM e publicam o resultado em outro tópico.
+
+Os agentes usam **Ollama com o modelo `qwen3:2b`** (suporta tool calling) e delegam capacidades especializadas para os tool servers (`processing-service` e `report-service`) via chamadas HTTP.
+
+---
 
 ### diagram-extraction-agent
 
@@ -33,7 +37,21 @@ Os agentes de IA são **Kafka-native workers**: consomem eventos de tópicos Kaf
 }
 ```
 
-**Providers de IA:** Claude Vision API (padrão) ou Ollama (`llava`), configurável via `AI_PROVIDER`.
+**Provider de IA:** Ollama (`qwen3:2b`), configurável via `OLLAMA_MODEL`.
+
+**Tools disponíveis (chamadas ao processing-service):**
+
+| Tool | Endpoint | Descrição |
+|---|---|---|
+| `ocr_extract(s3_url)` | `POST /tools/ocr` | Extrai texto do diagrama via AWS Textract |
+| `save_job(diagram_id)` | `POST /tools/jobs` | Cria registro de ProcessingJob no MongoDB |
+| `update_job(job_id, ...)` | `PUT /tools/jobs/:id` | Atualiza status/resultado do job |
+
+**Variáveis de ambiente:**
+- `KAFKA_BROKERS` (default: `localhost:9092`)
+- `OLLAMA_BASE_URL` (default: `http://localhost:11434`)
+- `OLLAMA_MODEL` (default: `qwen3:2b`)
+- `PROCESSING_SERVICE_URL` (default: `http://localhost:3001`)
 
 ---
 
@@ -65,7 +83,19 @@ Usa `processing.elements` e `processing.connections` do evento.
 }
 ```
 
-**Providers de IA:** Claude API ou Ollama (`qwen3:4b`), configurável via `AI_PROVIDER`.
+**Provider de IA:** Ollama (`qwen3:2b`), configurável via `OLLAMA_MODEL`.
+
+**Tools disponíveis (chamadas ao report-service):**
+
+| Tool | Endpoint | Descrição |
+|---|---|---|
+| `store_report(...)` | `POST /tools/reports` | Persiste o relatório de análise no MongoDB |
+
+**Variáveis de ambiente:**
+- `KAFKA_BROKERS` (default: `localhost:9092`)
+- `OLLAMA_BASE_URL` (default: `http://localhost:11434`)
+- `OLLAMA_MODEL` (default: `qwen3:2b`)
+- `REPORT_SERVICE_URL` (default: `http://localhost:3002`)
 
 ---
 

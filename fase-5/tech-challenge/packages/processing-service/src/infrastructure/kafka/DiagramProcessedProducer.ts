@@ -1,6 +1,6 @@
 import { Kafka, Producer } from 'kafkajs';
 import { v4 as uuidv4 } from 'uuid';
-import { DiagramElement } from '../../domain/entities/ProcessingJob';
+import { DiagramConnection, DiagramElement } from '../../domain/entities/ProcessingJob';
 
 export class KafkaProducerError extends Error {
   constructor(message: string, public readonly cause?: Error) {
@@ -20,6 +20,7 @@ export interface DiagramProcessedEventPayload {
     status: 'processed' | 'failed';
     extractedText?: string;
     elements?: DiagramElement[];
+    connections?: DiagramConnection[];
   };
   error?: {
     code: string;

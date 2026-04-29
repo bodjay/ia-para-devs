@@ -91,6 +91,7 @@ export class DiagramCreatedConsumer {
           storageUrl: event.diagram.storageUrl,
           fileType: event.diagram.fileType as SupportedFileType,
         },
+        userId: event.user.id,
       },
     });
 

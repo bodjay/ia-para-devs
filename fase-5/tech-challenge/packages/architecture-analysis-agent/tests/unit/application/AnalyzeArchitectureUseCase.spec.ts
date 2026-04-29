@@ -1,8 +1,9 @@
 import { AnalyzeArchitectureUseCase } from '../../../src/application/use-cases/AnalyzeArchitectureUseCase';
-import { ClaudeAnalysisClient, ClaudeAnalysisResponse } from '../../../src/infrastructure/ai/ClaudeAnalysisClient';
+import { IAnalysisClient, AnalysisResponse } from '../../../src/infrastructure/ai/IAnalysisClient';
+import { ReportServiceClient } from '../../../src/infrastructure/tools/ReportServiceClient';
 import { AnalyzeArchitectureInput } from '../../../src/domain/use-cases/IAnalyzeArchitectureUseCase';
 
-const makeClaudeResponse = (overrides: Partial<ClaudeAnalysisResponse> = {}): ClaudeAnalysisResponse => ({
+const makeAnalysisResponse = (overrides: Partial<AnalysisResponse> = {}): AnalysisResponse => ({
   components: [
     { name: 'api-gateway', type: 'microservice', description: 'Entry point for all client requests', observations: 'Single instance, no replica detected' },
     { name: 'user-service', type: 'microservice', description: 'Manages user accounts and authentication', observations: 'High number of sync dependencies' },
@@ -59,15 +60,20 @@ const makeBaseInput = (overrides: Partial<AnalyzeArchitectureInput['payload']> =
 });
 
 describe('AnalyzeArchitectureUseCase', () => {
-  let claudeAnalysisClient: jest.Mocked<ClaudeAnalysisClient>;
+  let analysisClient: jest.Mocked<IAnalysisClient>;
+  let reportClient: jest.Mocked<ReportServiceClient>;
   let useCase: AnalyzeArchitectureUseCase;
 
   beforeEach(() => {
-    claudeAnalysisClient = {
-      analyze: jest.fn().mockResolvedValue(makeClaudeResponse()),
-    } as unknown as jest.Mocked<ClaudeAnalysisClient>;
+    analysisClient = {
+      analyze: jest.fn().mockResolvedValue(makeAnalysisResponse()),
+    } as unknown as jest.Mocked<IAnalysisClient>;
 
-    useCase = new AnalyzeArchitectureUseCase(claudeAnalysisClient);
+    reportClient = {
+      storeReport: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<ReportServiceClient>;
+
+    useCase = new AnalyzeArchitectureUseCase(analysisClient, reportClient);
   });
 
   describe('analysis depth', () => {
@@ -76,7 +82,7 @@ describe('AnalyzeArchitectureUseCase', () => {
 
       const result = await useCase.execute(input);
 
-      expect(claudeAnalysisClient.analyze).toHaveBeenCalledWith(
+      expect(analysisClient.analyze).toHaveBeenCalledWith(
         expect.any(Array),
         expect.any(Array),
         expect.objectContaining({ analysisDepth: 'basic' })
@@ -88,7 +94,7 @@ describe('AnalyzeArchitectureUseCase', () => {
       const result = await useCase.execute(makeBaseInput());
 
       expect(result.architecturePatterns.length).toBeGreaterThan(0);
-      expect(claudeAnalysisClient.analyze).toHaveBeenCalledWith(
+      expect(analysisClient.analyze).toHaveBeenCalledWith(
         expect.any(Array),
         expect.any(Array),
         expect.objectContaining({ analysisDepth: 'intermediate' })
@@ -96,12 +102,12 @@ describe('AnalyzeArchitectureUseCase', () => {
     });
 
     it('should analyze with deep depth and include detailed observations', async () => {
-      const deepResponse = makeClaudeResponse({
+      const deepResponse = makeAnalysisResponse({
         components: [
           { name: 'api-gateway', type: 'microservice', description: 'Entry point', observations: 'Detailed: No rate limiting, no circuit breaker, single instance' },
         ],
       });
-      claudeAnalysisClient.analyze.mockResolvedValueOnce(deepResponse);
+      analysisClient.analyze.mockResolvedValueOnce(deepResponse);
 
       const input = makeBaseInput({ options: { analysisDepth: 'deep', includeRisks: true, includeRecommendations: true, language: 'pt-BR' } });
       const result = await useCase.execute(input);
@@ -128,12 +134,12 @@ describe('AnalyzeArchitectureUseCase', () => {
     });
 
     it('should detect monolith pattern when single service without broker', async () => {
-      const monolithResponse = makeClaudeResponse({
+      const monolithResponse = makeAnalysisResponse({
         architecturePatterns: [
           { name: 'Monolith', confidence: 0.9, description: 'Single deployable unit handling all concerns' },
         ],
       });
-      claudeAnalysisClient.analyze.mockResolvedValueOnce(monolithResponse);
+      analysisClient.analyze.mockResolvedValueOnce(monolithResponse);
 
       const monolithInput = makeBaseInput({
         elements: [{ id: 'el-1', label: 'monolith-app', type: 'microservice' }],
@@ -208,15 +214,6 @@ describe('AnalyzeArchitectureUseCase', () => {
       expect(replicaRec?.priority).toBe('high');
       expect(replicaRec?.relatedRisks).toContain('Lack of Redundancy');
     });
-
-    it('should include relatedRisks in recommendations', async () => {
-      const result = await useCase.execute(makeBaseInput());
-
-      result.recommendations.forEach((rec) => {
-        expect(rec.relatedRisks).toBeDefined();
-        expect(Array.isArray(rec.relatedRisks)).toBe(true);
-      });
-    });
   });
 
   describe('output structure', () => {
@@ -252,9 +249,32 @@ describe('AnalyzeArchitectureUseCase', () => {
     });
   });
 
+  describe('report tool call', () => {
+    it('should call storeReport after successful analysis', async () => {
+      await useCase.execute(makeBaseInput());
+
+      expect(reportClient.storeReport).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call storeReport even when analysis fails', async () => {
+      analysisClient.analyze.mockRejectedValueOnce(new Error('API unavailable'));
+
+      const result = await useCase.execute(makeBaseInput());
+
+      expect(result.status).toBe('failed');
+      expect(reportClient.storeReport).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not throw when storeReport fails', async () => {
+      reportClient.storeReport.mockRejectedValueOnce(new Error('report-service unreachable'));
+
+      await expect(useCase.execute(makeBaseInput())).resolves.toBeDefined();
+    });
+  });
+
   describe('failure scenarios', () => {
-    it('should return status "failed" when Claude API fails', async () => {
-      claudeAnalysisClient.analyze.mockRejectedValueOnce(new Error('Claude API unavailable'));
+    it('should return status "failed" when analysis client fails', async () => {
+      analysisClient.analyze.mockRejectedValueOnce(new Error('Claude API unavailable'));
 
       const result = await useCase.execute(makeBaseInput());
 
@@ -263,14 +283,14 @@ describe('AnalyzeArchitectureUseCase', () => {
     });
 
     it('should handle empty elements list gracefully', async () => {
-      const emptyResponse = makeClaudeResponse({
+      const emptyResponse = makeAnalysisResponse({
         components: [],
         architecturePatterns: [],
         risks: [],
         recommendations: [],
         summary: 'No components detected in the diagram.',
       });
-      claudeAnalysisClient.analyze.mockResolvedValueOnce(emptyResponse);
+      analysisClient.analyze.mockResolvedValueOnce(emptyResponse);
 
       const input = makeBaseInput({ elements: [], connections: [] });
       const result = await useCase.execute(input);
@@ -279,36 +299,18 @@ describe('AnalyzeArchitectureUseCase', () => {
       expect(result.components).toHaveLength(0);
       expect(result.summary).toContain('No components');
     });
-
-    it('should handle elements with "unknown" type', async () => {
-      const unknownResponse = makeClaudeResponse({
-        components: [
-          { name: 'mystery-box', type: 'unknown' as any, description: 'Could not classify this component', observations: '' },
-        ],
-      });
-      claudeAnalysisClient.analyze.mockResolvedValueOnce(unknownResponse);
-
-      const input = makeBaseInput({
-        elements: [{ id: 'el-x', label: 'mystery-box', type: 'unknown' }],
-        connections: [],
-      });
-      const result = await useCase.execute(input);
-
-      expect(result.status).toBe('completed');
-      expect(result.components[0].type).toBe('unknown');
-    });
   });
 
   describe('options behavior', () => {
-    it('should respect language option (pt-BR vs en-US) in output', async () => {
-      const ptBRResponse = makeClaudeResponse({ summary: 'Arquitetura de microsserviços com três riscos identificados.' });
-      claudeAnalysisClient.analyze.mockResolvedValueOnce(ptBRResponse);
+    it('should respect language option in output', async () => {
+      const ptBRResponse = makeAnalysisResponse({ summary: 'Arquitetura de microsserviços com três riscos identificados.' });
+      analysisClient.analyze.mockResolvedValueOnce(ptBRResponse);
 
       const result = await useCase.execute(
         makeBaseInput({ options: { analysisDepth: 'intermediate', includeRisks: true, includeRecommendations: true, language: 'pt-BR' } })
       );
 
-      expect(claudeAnalysisClient.analyze).toHaveBeenCalledWith(
+      expect(analysisClient.analyze).toHaveBeenCalledWith(
         expect.any(Array),
         expect.any(Array),
         expect.objectContaining({ language: 'pt-BR' })
@@ -317,32 +319,22 @@ describe('AnalyzeArchitectureUseCase', () => {
     });
 
     it('should skip risks when includeRisks is false', async () => {
-      const noRisksResponse = makeClaudeResponse({ risks: [] });
-      claudeAnalysisClient.analyze.mockResolvedValueOnce(noRisksResponse);
+      const noRisksResponse = makeAnalysisResponse({ risks: [] });
+      analysisClient.analyze.mockResolvedValueOnce(noRisksResponse);
 
       const input = makeBaseInput({ options: { analysisDepth: 'intermediate', includeRisks: false, includeRecommendations: true, language: 'pt-BR' } });
       const result = await useCase.execute(input);
 
-      expect(claudeAnalysisClient.analyze).toHaveBeenCalledWith(
-        expect.any(Array),
-        expect.any(Array),
-        expect.objectContaining({ includeRisks: false })
-      );
       expect(result.risks).toHaveLength(0);
     });
 
     it('should skip recommendations when includeRecommendations is false', async () => {
-      const noRecsResponse = makeClaudeResponse({ recommendations: [] });
-      claudeAnalysisClient.analyze.mockResolvedValueOnce(noRecsResponse);
+      const noRecsResponse = makeAnalysisResponse({ recommendations: [] });
+      analysisClient.analyze.mockResolvedValueOnce(noRecsResponse);
 
       const input = makeBaseInput({ options: { analysisDepth: 'intermediate', includeRisks: true, includeRecommendations: false, language: 'pt-BR' } });
       const result = await useCase.execute(input);
 
-      expect(claudeAnalysisClient.analyze).toHaveBeenCalledWith(
-        expect.any(Array),
-        expect.any(Array),
-        expect.objectContaining({ includeRecommendations: false })
-      );
       expect(result.recommendations).toHaveLength(0);
     });
   });

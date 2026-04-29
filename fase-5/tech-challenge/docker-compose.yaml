@@ -91,9 +91,12 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-ollama}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      PROCESSING_SERVICE_URL: http://processing-service:3001
     depends_on:
       kafka:
         condition: service_healthy
+      processing-service:
+        condition: service_started
     restart: unless-stopped
 
   architecture-analysis-agent:

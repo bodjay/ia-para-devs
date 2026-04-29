@@ -28,8 +28,8 @@ const makeSuccessPayload = (overrides: Partial<DiagramProcessedEventPayload> = {
     status: 'processed',
     extractedText: 'API Gateway -> Auth Service -> User DB',
     elements: [
-      { type: 'microservice', label: 'API Gateway', position: { x: 0, y: 0 } },
-      { type: 'database', label: 'User DB', position: { x: 200, y: 100 } },
+      { id: 'e1', type: 'microservice', label: 'API Gateway', position: { x: 0, y: 0 } },
+      { id: 'e2', type: 'database', label: 'User DB', position: { x: 200, y: 100 } },
     ],
   },
   ...overrides,

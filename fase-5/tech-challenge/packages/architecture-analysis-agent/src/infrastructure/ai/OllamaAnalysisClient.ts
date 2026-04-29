@@ -4,7 +4,7 @@ import { AnalysisElement, AnalysisConnection } from '../../domain/use-cases/IAna
 export class OllamaAnalysisClient implements IAnalysisClient {
   constructor(
     private readonly baseUrl: string = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434',
-    private readonly model: string = process.env.OLLAMA_MODEL ?? 'qwen3:4b',
+    private readonly model: string = process.env.OLLAMA_MODEL ?? 'qwen3:2b',
     private readonly timeoutMs: number = 300_000
   ) {}
 

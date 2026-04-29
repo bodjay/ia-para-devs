@@ -1,22 +1,20 @@
 import { Kafka } from 'kafkajs';
-import { ClaudeAnalysisClient } from './infrastructure/ai/ClaudeAnalysisClient';
 import { OllamaAnalysisClient } from './infrastructure/ai/OllamaAnalysisClient';
 import { IAnalysisClient } from './infrastructure/ai/IAnalysisClient';
+import { ReportServiceClient } from './infrastructure/tools/ReportServiceClient';
 import { AnalyzeArchitectureUseCase } from './application/use-cases/AnalyzeArchitectureUseCase';
 import { DiagramProcessedConsumer } from './infrastructure/kafka/DiagramProcessedConsumer';
 import { AnalysisCompletedProducer } from './infrastructure/kafka/AnalysisCompletedProducer';
 
-const AI_PROVIDER = process.env.AI_PROVIDER ?? 'ollama';
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(',');
+const REPORT_SERVICE_URL = process.env.REPORT_SERVICE_URL ?? 'http://localhost:3002';
 
-const analysisClient: IAnalysisClient =
-  AI_PROVIDER === 'claude'
-    ? new ClaudeAnalysisClient(process.env.ANTHROPIC_API_KEY ?? '')
-    : new OllamaAnalysisClient();
+const analysisClient: IAnalysisClient = new OllamaAnalysisClient();
+const reportClient = new ReportServiceClient(REPORT_SERVICE_URL);
 
 const kafka = new Kafka({ clientId: 'architecture-analysis-agent', brokers: KAFKA_BROKERS, requestTimeout: 90000 });
 
-const analyzeUseCase = new AnalyzeArchitectureUseCase(analysisClient);
+const analyzeUseCase = new AnalyzeArchitectureUseCase(analysisClient, reportClient);
 const producer = new AnalysisCompletedProducer(kafka);
 const consumer = new DiagramProcessedConsumer(kafka, analyzeUseCase, producer);
 

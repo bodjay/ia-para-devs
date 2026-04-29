@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { ProcessingJob, DiagramElement } from '../../domain/entities/ProcessingJob';
+import { ProcessingJob, DiagramConnection, DiagramElement } from '../../domain/entities/ProcessingJob';
 import { IProcessingJobRepository } from '../../domain/repositories/IProcessingJobRepository';
 import {
   IProcessDiagramUseCase,
@@ -78,6 +78,13 @@ export class ProcessDiagramUseCase implements IProcessDiagramUseCase {
         job.fail(agentResult.error ?? { code: 'AGENT_FAILED', message: 'Agent returned failed status' });
         await this.repository.update(job);
 
+        const failedConnections: DiagramConnection[] = agentResult.connections.map((conn) => ({
+          fromElementId: conn.fromElementId,
+          toElementId: conn.toElementId,
+          type: conn.type,
+          label: conn.label,
+        }));
+
         await this.producer.publishDiagramProcessed({
           diagram: {
             id: event.diagram.id,
@@ -89,10 +96,12 @@ export class ProcessDiagramUseCase implements IProcessDiagramUseCase {
             status: 'failed',
             extractedText: agentResult.extractedText,
             elements: agentResult.elements.map((el) => ({
+              id: el.id,
               type: el.type,
               label: el.label,
               position: { x: el.boundingBox.x, y: el.boundingBox.y },
             })),
+            connections: failedConnections,
           },
           error: agentResult.error,
         });
@@ -100,12 +109,20 @@ export class ProcessDiagramUseCase implements IProcessDiagramUseCase {
       }
 
       const elements: DiagramElement[] = agentResult.elements.map((el) => ({
+        id: el.id,
         type: el.type,
         label: el.label,
         position: { x: el.boundingBox.x, y: el.boundingBox.y },
       }));
 
-      job.complete(agentResult.extractedText, elements);
+      const connections: DiagramConnection[] = agentResult.connections.map((conn) => ({
+        fromElementId: conn.fromElementId,
+        toElementId: conn.toElementId,
+        type: conn.type,
+        label: conn.label,
+      }));
+
+      job.complete(agentResult.extractedText, elements, connections);
       await this.repository.update(job);
 
       await this.producer.publishDiagramProcessed({
@@ -119,6 +136,7 @@ export class ProcessDiagramUseCase implements IProcessDiagramUseCase {
           status: 'processed',
           extractedText: agentResult.extractedText,
           elements,
+          connections,
         },
       });
     } catch (error) {

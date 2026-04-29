@@ -10,6 +10,7 @@ export interface ExtractDiagramInput {
       fileType: SupportedFileType;
       storageUrl: string;
     };
+    userId?: string;
     extractedText?: string;
     options?: {
       detectText?: boolean;

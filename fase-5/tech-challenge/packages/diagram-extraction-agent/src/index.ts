@@ -1,22 +1,19 @@
 import { Kafka } from 'kafkajs';
-import { ClaudeVisionClient } from './infrastructure/ai/ClaudeVisionClient';
 import { OllamaVisionClient } from './infrastructure/ai/OllamaVisionClient';
-import { IVisionClient } from './infrastructure/ai/IVisionClient';
+import { ProcessingServiceClient } from './infrastructure/tools/ProcessingServiceClient';
 import { ExtractDiagramUseCase } from './application/use-cases/ExtractDiagramUseCase';
 import { DiagramCreatedConsumer } from './infrastructure/kafka/DiagramCreatedConsumer';
 import { DiagramProcessedProducer } from './infrastructure/kafka/DiagramProcessedProducer';
 
-const AI_PROVIDER = process.env.AI_PROVIDER ?? 'claude';
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(',');
+const PROCESSING_SERVICE_URL = process.env.PROCESSING_SERVICE_URL ?? 'http://localhost:3001';
 
-const visionClient: IVisionClient =
-  AI_PROVIDER === 'ollama'
-    ? new OllamaVisionClient()
-    : new ClaudeVisionClient(process.env.ANTHROPIC_API_KEY ?? '');
+const processingClient = new ProcessingServiceClient(PROCESSING_SERVICE_URL);
+const visionClient = new OllamaVisionClient(processingClient);
 
 const kafka = new Kafka({ clientId: 'diagram-extraction-agent', brokers: KAFKA_BROKERS, requestTimeout: 90000 });
 
-const extractUseCase = new ExtractDiagramUseCase(visionClient);
+const extractUseCase = new ExtractDiagramUseCase(visionClient, processingClient);
 const producer = new DiagramProcessedProducer(kafka);
 const consumer = new DiagramCreatedConsumer(kafka, extractUseCase, producer);
 
