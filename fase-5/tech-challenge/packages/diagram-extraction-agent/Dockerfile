@@ -10,5 +10,4 @@ WORKDIR /app
 COPY --from=builder /app/packages/diagram-extraction-agent/package.json ./
 COPY --from=builder /app/packages/diagram-extraction-agent/dist ./dist
 RUN npm install --omit=dev
-EXPOSE 3003
-CMD ["node", "dist/src/server.js"]
+CMD ["node", "dist/src/index.js"]

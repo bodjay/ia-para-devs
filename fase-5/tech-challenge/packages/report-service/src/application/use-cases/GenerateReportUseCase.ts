@@ -17,6 +17,19 @@ export class GenerateReportUseCase implements IGenerateReportUseCase {
   ) {}
 
   async execute(input: GenerateReportInput): Promise<GenerateReportOutput> {
+    const existingReport = await this.reportRepository.findByDiagramId(input.diagramId);
+    if (existingReport && existingReport.status !== 'failed') {
+      console.warn(
+        `[GenerateReportUseCase] Duplicate delivery for diagram ${input.diagramId} — report already ${existingReport.status}, skipping`
+      );
+      return {
+        reportId: existingReport.id,
+        analysisId: existingReport.analysisId,
+        diagramId: input.diagramId,
+        status: existingReport.status === 'completed' ? 'completed' : 'failed',
+      };
+    }
+
     const report = new Report({
       diagramId: input.diagramId,
     });

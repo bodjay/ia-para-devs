@@ -8,6 +8,7 @@ export interface SessionRecord {
   createdAt: string;
   lastActiveAt: string;
   diagramId?: string;
+  analysisId?: string;
 }
 
 export interface SessionsState {

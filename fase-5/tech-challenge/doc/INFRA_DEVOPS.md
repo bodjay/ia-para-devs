@@ -12,12 +12,13 @@ O arquivo `docker-compose.yaml` na raiz do projeto orquestra todos os serviços 
 | `kafka` | `confluentinc/cp-kafka:7.6.0` | 9092 | Message broker |
 | `mongo` | `mongo:7.0` | 27017 | Banco de dados (compartilhado entre serviços) |
 | `ollama` | `ollama/ollama:latest` | 11434 | LLM local (profile: `ollama`) |
+| `orchestrator-agent` | build | 3005 | Orquestrador LangGraph — roteamento e chat com LLM |
 | `diagram-extraction-agent` | build | 3003 | Extração de elementos via Claude ou Ollama |
 | `architecture-analysis-agent` | build | 3004 | Análise de riscos via Claude ou Ollama |
 | `bff` | build | 3001 | API Gateway |
 | `upload-service` | build | 3002 | Upload de diagramas para S3 |
-| `processing-service` | build | — | Consumidor Kafka: extração via Textract + agente |
-| `report-service` | build | — | Consumidor Kafka: geração de relatório |
+| `processing-service` | build | — (interno: 3001) | Tool server HTTP: OCR e rastreamento de jobs |
+| `report-service` | build | — | Tool server HTTP: persistência de relatórios |
 | `frontend` | build | 3000 | SPA React (servida via Nginx) |
 
 #### Profiles
@@ -35,6 +36,15 @@ Sem o profile, o `diagram-extraction-agent` usa Claude (`AI_PROVIDER=claude` por
 As variáveis são lidas do arquivo `.env` na raiz. Consulte `.env.example` para a lista completa.
 
 Variáveis com fallback no compose (ex: `${AWS_REGION:-us-east-1}`) usam o valor padrão quando não definidas.
+
+**Variáveis de conectividade entre serviços:**
+
+| Variável | Serviço que lê | Valor no Docker | Valor recomendado em dev local |
+|---|---|---|---|
+| `PROCESSING_SERVICE_URL` | `diagram-extraction-agent` | `http://processing-service:3001` (fixo no compose) | `http://localhost:3005` |
+| `PROCESSING_PORT` | `processing-service` | `3001` (padrão) | `3005` (evita conflito com BFF na 3001) |
+
+> Em Docker, `PROCESSING_SERVICE_URL` é injetado diretamente no compose e não precisa estar no `.env`. Para desenvolvimento local fora do Docker, defina ambas as variáveis no `.env`.
 
 #### Volumes
 

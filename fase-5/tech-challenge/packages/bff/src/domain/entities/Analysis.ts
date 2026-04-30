@@ -14,7 +14,7 @@ const VALID_TRANSITIONS: Record<AnalysisStatus, AnalysisStatus[]> = {
   pending: ['processing', 'failed'],
   processing: ['completed', 'failed'],
   completed: [],
-  failed: [],
+  failed: ['processing', 'completed'],
 };
 
 export interface AnalysisError {

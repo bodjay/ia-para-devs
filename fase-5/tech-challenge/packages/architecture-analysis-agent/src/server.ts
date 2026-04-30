@@ -15,7 +15,10 @@ const analysisClient: IAnalysisClient =
 
 console.log(`Architecture analysis agent using provider: ${AI_PROVIDER}`);
 
-const analyzeUseCase = new AnalyzeArchitectureUseCase(analysisClient);
+import { ReportServiceClient } from './infrastructure/tools/ReportServiceClient';
+
+const reportClient = new ReportServiceClient();
+const analyzeUseCase = new AnalyzeArchitectureUseCase(analysisClient, reportClient);
 
 const app = express();
 app.use(express.json());

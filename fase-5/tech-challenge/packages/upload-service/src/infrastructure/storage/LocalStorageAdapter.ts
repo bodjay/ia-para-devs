@@ -2,6 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { IStorageAdapter, StorageFile } from './IStorageAdapter';
 
+const UPLOAD_SERVICE_PUBLIC_URL =
+  process.env.UPLOAD_SERVICE_PUBLIC_URL ?? 'http://upload-service:3002';
+
 export class LocalStorageAdapter implements IStorageAdapter {
   constructor(private readonly uploadDir: string) {
     if (!fs.existsSync(uploadDir)) {
@@ -15,6 +18,6 @@ export class LocalStorageAdapter implements IStorageAdapter {
     if (file.buffer) {
       fs.writeFileSync(filePath, file.buffer);
     }
-    return `/uploads/${fileName}`;
+    return `${UPLOAD_SERVICE_PUBLIC_URL}/uploads/${fileName}`;
   }
 }

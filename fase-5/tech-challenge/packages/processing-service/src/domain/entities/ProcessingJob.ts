@@ -4,10 +4,20 @@ export type ProcessingStatus = 'pending' | 'processing' | 'processed' | 'failed'
 
 export type ElementType = 'microservice' | 'database' | 'broker' | 'client' | 'unknown';
 
+export type ConnectionType = 'sync' | 'async' | 'unknown';
+
 export interface DiagramElement {
+  id: string;
   type: ElementType;
   label: string;
   position: { x: number; y: number };
+}
+
+export interface DiagramConnection {
+  fromElementId: string;
+  toElementId: string;
+  type: ConnectionType;
+  label: string;
 }
 
 export interface ProcessingError {
@@ -21,6 +31,7 @@ export interface ProcessingJobProps {
   status?: ProcessingStatus;
   extractedText?: string;
   elements?: DiagramElement[];
+  connections?: DiagramConnection[];
   error?: ProcessingError;
   createdAt?: Date;
 }
@@ -31,6 +42,7 @@ export class ProcessingJob {
   private _status: ProcessingStatus;
   private _extractedText: string;
   private _elements: DiagramElement[];
+  private _connections: DiagramConnection[];
   private _error: ProcessingError | undefined;
   readonly createdAt: Date;
 
@@ -44,6 +56,7 @@ export class ProcessingJob {
     this._status = props.status ?? 'pending';
     this._extractedText = props.extractedText ?? '';
     this._elements = props.elements ?? [];
+    this._connections = props.connections ?? [];
     this._error = props.error;
     this.createdAt = props.createdAt ?? new Date();
   }
@@ -60,6 +73,10 @@ export class ProcessingJob {
     return [...this._elements];
   }
 
+  get connections(): DiagramConnection[] {
+    return [...this._connections];
+  }
+
   get error(): ProcessingError | undefined {
     return this._error;
   }
@@ -68,10 +85,11 @@ export class ProcessingJob {
     this._status = 'processing';
   }
 
-  complete(extractedText: string, elements: DiagramElement[]): void {
+  complete(extractedText: string, elements: DiagramElement[], connections: DiagramConnection[] = []): void {
     this._status = 'processed';
     this._extractedText = extractedText;
     this._elements = elements;
+    this._connections = connections;
   }
 
   fail(error: ProcessingError): void {

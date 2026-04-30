@@ -3,6 +3,7 @@ import multer from 'multer';
 import axios from 'axios';
 import { ICreateAnalysisUseCase } from '../../domain/use-cases/ICreateAnalysisUseCase';
 import { ISessionRepository } from '../../domain/repositories/ISessionRepository';
+import { IAnalysisRepository } from '../../domain/repositories/IAnalysisRepository';
 import { DiagramFileType, SUPPORTED_FILE_TYPES } from '../../domain/entities/Diagram';
 
 const UPLOAD_SERVICE_URL =
@@ -18,7 +19,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 export function createDiagramRouter(
   createAnalysisUseCase: ICreateAnalysisUseCase,
-  sessionRepository: ISessionRepository
+  sessionRepository: ISessionRepository,
+  analysisRepository: IAnalysisRepository
 ): Router {
   const router = Router();
 
@@ -86,6 +88,34 @@ export function createDiagramRouter(
           const status = err.response?.status ?? 502;
           const body = err.response?.data ?? { error: 'Upload service unavailable' };
           res.status(status).json(body);
+          return;
+        }
+        next(err);
+      }
+    }
+  );
+
+  router.get(
+    '/diagrams/:diagramId/image',
+    async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+      try {
+        const { diagramId } = req.params;
+        const analysis = await analysisRepository.findByDiagramId(diagramId);
+        if (!analysis) {
+          res.status(404).json({ error: 'Diagram not found' });
+          return;
+        }
+
+        const imgRes = await axios.get<NodeJS.ReadableStream>(analysis.diagram.storageUrl, {
+          responseType: 'stream',
+        });
+
+        res.setHeader('Content-Type', (imgRes.headers['content-type'] as string) || 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        (imgRes.data as NodeJS.ReadableStream).pipe(res);
+      } catch (err) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          res.status(404).json({ error: 'Image not found in storage' });
           return;
         }
         next(err);

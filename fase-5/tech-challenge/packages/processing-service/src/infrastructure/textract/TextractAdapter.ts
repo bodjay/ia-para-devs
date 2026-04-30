@@ -12,6 +12,10 @@ export class TextractAdapter implements ITextractAdapter {
   }
 
   async extractText(storageUrl: string): Promise<string> {
+    if (!storageUrl.startsWith('s3://') && !storageUrl.includes('.s3.')) {
+      return '';
+    }
+
     const { bucket, key } = this.parseS3Url(storageUrl);
 
     const response = await this.client.send(
@@ -22,7 +26,7 @@ export class TextractAdapter implements ITextractAdapter {
             Name: key,
           },
         },
-        FeatureTypes: ['LAYOUT'],
+        FeatureTypes: ['TABLES'],
       })
     );
     console.log('Textract found blocks:', response.Blocks?.length ?? 0);

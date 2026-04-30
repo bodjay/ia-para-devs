@@ -5,6 +5,7 @@ describe('ProcessingJob Entity', () => {
 
   const makeElements = (count = 2): DiagramElement[] =>
     Array.from({ length: count }, (_, i) => ({
+      id: `elem-${i + 1}`,
       type: 'microservice' as const,
       label: `Service-${i + 1}`,
       position: { x: i * 100, y: 0 },
@@ -136,19 +137,19 @@ describe('ProcessingJob Entity', () => {
     it('stores elements with all fields correctly', () => {
       const job = new ProcessingJob({ diagramId: validDiagramId });
       const elements: DiagramElement[] = [
-        { type: 'microservice', label: 'API Gateway', position: { x: 0, y: 0 } },
-        { type: 'database', label: 'User DB', position: { x: 200, y: 100 } },
-        { type: 'broker', label: 'Kafka', position: { x: 400, y: 0 } },
-        { type: 'client', label: 'Frontend', position: { x: 600, y: 50 } },
-        { type: 'unknown', label: 'Unknown Box', position: { x: 800, y: 0 } },
+        { id: 'e1', type: 'microservice', label: 'API Gateway', position: { x: 0, y: 0 } },
+        { id: 'e2', type: 'database', label: 'User DB', position: { x: 200, y: 100 } },
+        { id: 'e3', type: 'broker', label: 'Kafka', position: { x: 400, y: 0 } },
+        { id: 'e4', type: 'client', label: 'Frontend', position: { x: 600, y: 50 } },
+        { id: 'e5', type: 'unknown', label: 'Unknown Box', position: { x: 800, y: 0 } },
       ];
 
       job.complete('text', elements);
 
       expect(job.elements).toHaveLength(5);
-      expect(job.elements[0]).toEqual({ type: 'microservice', label: 'API Gateway', position: { x: 0, y: 0 } });
-      expect(job.elements[1]).toEqual({ type: 'database', label: 'User DB', position: { x: 200, y: 100 } });
-      expect(job.elements[2]).toEqual({ type: 'broker', label: 'Kafka', position: { x: 400, y: 0 } });
+      expect(job.elements[0]).toEqual({ id: 'e1', type: 'microservice', label: 'API Gateway', position: { x: 0, y: 0 } });
+      expect(job.elements[1]).toEqual({ id: 'e2', type: 'database', label: 'User DB', position: { x: 200, y: 100 } });
+      expect(job.elements[2]).toEqual({ id: 'e3', type: 'broker', label: 'Kafka', position: { x: 400, y: 0 } });
     });
 
     it('elements array is immutable (returns a copy)', () => {
@@ -156,7 +157,7 @@ describe('ProcessingJob Entity', () => {
       job.complete('text', makeElements(2));
 
       const elements = job.elements;
-      elements.push({ type: 'unknown', label: 'injected', position: { x: 0, y: 0 } });
+      elements.push({ id: 'injected', type: 'unknown', label: 'injected', position: { x: 0, y: 0 } });
 
       expect(job.elements).toHaveLength(2);
     });

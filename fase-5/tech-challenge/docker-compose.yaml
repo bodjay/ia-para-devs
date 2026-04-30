@@ -7,6 +7,9 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 10
+      ZOOKEEPER_SYNC_LIMIT: 5
+      ZOOKEEPER_MAX_SESSION_TIMEOUT: 60000
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "2181"]
       interval: 10s
@@ -30,6 +33,10 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: 30000
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 20000
+      KAFKA_GROUP_MIN_SESSION_TIMEOUT_MS: 6000
+      KAFKA_GROUP_MAX_SESSION_TIMEOUT_MS: 600000
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 15s
@@ -59,34 +66,52 @@ services:
       - ollama-data:/root/.ollama
     restart: unless-stopped
 
-  # ─── AI Agents ───────────────────────────────────────────────────────────────
+  # ─── AI Agents (Kafka-native workers) ────────────────────────────────────────
+
+  orchestrator-agent:
+    build:
+      context: .
+      dockerfile: packages/orchestrator-agent/Dockerfile
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
 
   diagram-extraction-agent:
     build:
       context: .
       dockerfile: packages/diagram-extraction-agent/Dockerfile
-    ports:
-      - "3003:3003"
     environment:
-      PORT: 3003
+      KAFKA_BROKERS: kafka:9092
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       AI_PROVIDER: ${AI_PROVIDER:-ollama}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      PROCESSING_SERVICE_URL: http://processing-service:3001
+    depends_on:
+      kafka:
+        condition: service_healthy
+      processing-service:
+        condition: service_started
     restart: unless-stopped
 
   architecture-analysis-agent:
     build:
       context: .
       dockerfile: packages/architecture-analysis-agent/Dockerfile
-    ports:
-      - "3004:3004"
     environment:
-      PORT: 3004
+      KAFKA_BROKERS: kafka:9092
       AI_PROVIDER: ${AI_PROVIDER:-ollama}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    depends_on:
+      kafka:
+        condition: service_healthy
     restart: unless-stopped
 
   # ─── Backend Services ─────────────────────────────────────────────────────
@@ -101,8 +126,6 @@ services:
       PORT: 3001
       MONGO_URI: mongodb://mongo:27017/arch-analyzer-bff
       KAFKA_BROKERS: kafka:9092
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
     depends_on:
       mongo:
         condition: service_healthy
@@ -121,6 +144,8 @@ services:
       MONGO_URI: mongodb://mongo:27017/arch-analyzer-uploads
       KAFKA_BROKERS: kafka:9092
       UPLOAD_DIR: /app/uploads
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+      UPLOAD_SERVICE_PUBLIC_URL: ${UPLOAD_SERVICE_PUBLIC_URL:-http://upload-service:3002}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_REGION: ${AWS_REGION:-us-east-1}
@@ -142,17 +167,16 @@ services:
       MONGO_URI: mongodb://mongo:27017/arch-analyzer-processing
       KAFKA_BROKERS: kafka:9092
       EXTRACTION_AGENT_URL: http://diagram-extraction-agent:3003
-      EXTRACTION_AGENT_TIMEOUT_MS: ${EXTRACTION_AGENT_TIMEOUT_MS:-360000}
+      EXTRACTION_AGENT_TIMEOUT_MS: 360000
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      KAFKAJS_NO_PARTITIONER_WARNING: 1
     depends_on:
       mongo:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      diagram-extraction-agent:
-        condition: service_started
     restart: unless-stopped
 
   report-service:
@@ -163,13 +187,12 @@ services:
       MONGO_URI: mongodb://mongo:27017/arch-analyzer-reports
       KAFKA_BROKERS: kafka:9092
       ANALYSIS_AGENT_URL: http://architecture-analysis-agent:3004
+      KAFKAJS_NO_PARTITIONER_WARNING: 1
     depends_on:
       mongo:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      architecture-analysis-agent:
-        condition: service_started
     restart: unless-stopped
 
   # ─── Frontend ────────────────────────────────────────────────────────────────

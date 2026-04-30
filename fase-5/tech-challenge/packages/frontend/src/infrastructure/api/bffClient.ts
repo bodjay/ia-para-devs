@@ -32,6 +32,7 @@ export async function uploadDiagram(
 interface AnalysisResponse {
   analysisId: string;
   status: string;
+  diagram?: { id: string };
   result?: AnalysisResult;
   error?: { message: string };
 }
@@ -41,12 +42,23 @@ async function fetchAnalysis(analysisId: string): Promise<AnalysisResponse> {
   return handleResponse<AnalysisResponse>(res);
 }
 
+export async function getAnalysis(
+  analysisId: string
+): Promise<{ diagramId: string | null; result: AnalysisResult | null; status: string }> {
+  const data = await fetchAnalysis(analysisId);
+  return {
+    diagramId: data.diagram?.id ?? null,
+    result: data.status === 'completed' && data.result ? data.result : null,
+    status: data.status,
+  };
+}
+
 export async function pollAnalysis(
   analysisId: string,
   opts: { intervalMs?: number; maxAttempts?: number } = {}
 ): Promise<AnalysisResult> {
-  const intervalMs = opts.intervalMs ?? 2000;
-  const maxAttempts = opts.maxAttempts ?? 30;
+  const intervalMs = opts.intervalMs ?? 3000;
+  const maxAttempts = opts.maxAttempts ?? 120;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const data = await fetchAnalysis(analysisId);
@@ -80,6 +92,7 @@ export async function getSessions(): Promise<SessionRecord[]> {
     createdAt: s.createdAt,
     lastActiveAt: s.lastActiveAt,
     diagramId: s.diagramId,
+    analysisId: s.analysisId,
   }));
 }
 
@@ -153,6 +166,7 @@ export const bffClient = {
   pollAnalysis,
   getSessions,
   createSession,
+  getAnalysis,
   getMessages,
   sendMessage,
 };

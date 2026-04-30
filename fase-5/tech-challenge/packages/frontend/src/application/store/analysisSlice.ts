@@ -29,6 +29,17 @@ export interface UploadDiagramResult {
   analysis: AnalysisResult;
 }
 
+export const loadAnalysis = createAsyncThunk(
+  'analysis/load',
+  async (analysisId: string, { rejectWithValue }) => {
+    try {
+      return await bffClient.getAnalysis(analysisId);
+    } catch (error) {
+      return rejectWithValue((error as Error).message);
+    }
+  }
+);
+
 export const uploadAndAnalyzeDiagram = createAsyncThunk(
   'analysis/uploadAndAnalyze',
   async (payload: UploadDiagramPayload, { dispatch, rejectWithValue }) => {
@@ -84,6 +95,16 @@ const analysisSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(loadAnalysis.fulfilled, (state, action) => {
+        const { diagramId, result, status } = action.payload;
+        if (status === 'completed' && result) {
+          state.status = 'completed';
+          state.result = result;
+          state.diagramId = diagramId;
+          state.analysisId = action.meta.arg;
+          state.errorMessage = null;
+        }
+      })
       .addCase(uploadAndAnalyzeDiagram.fulfilled, (state, action) => {
         state.status = 'completed';
         state.analysisId = action.payload.analysisId;

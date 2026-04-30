@@ -268,6 +268,45 @@ describe('ProcessDiagramUseCase', () => {
     });
   });
 
+  describe('should publish diagram.processed event with extracted connections on success', () => {
+    it('published event includes connections from agent output', async () => {
+      await useCase.execute(makeDiagramCreatedEvent());
+
+      const publishPayload = producer.publishDiagramProcessed.mock.calls[0][0];
+      expect(publishPayload.processing.connections).toHaveLength(1);
+      expect(publishPayload.processing.connections![0].fromElementId).toBe('el-1');
+      expect(publishPayload.processing.connections![0].toElementId).toBe('el-2');
+      expect(publishPayload.processing.connections![0].type).toBe('sync');
+      expect(publishPayload.processing.connections![0].label).toBe('query');
+    });
+
+    it('each connection has fromElementId, toElementId, type and label', async () => {
+      await useCase.execute(makeDiagramCreatedEvent());
+
+      const publishPayload = producer.publishDiagramProcessed.mock.calls[0][0];
+      for (const conn of publishPayload.processing.connections!) {
+        expect(conn).toHaveProperty('fromElementId');
+        expect(conn).toHaveProperty('toElementId');
+        expect(conn).toHaveProperty('type');
+        expect(conn).toHaveProperty('label');
+      }
+    });
+  });
+
+  describe('should publish empty connections array when agent returns no connections', () => {
+    it('published event has empty connections array', async () => {
+      agentClient.extract.mockResolvedValue(
+        makeSuccessfulAgentOutput({ connections: [] })
+      );
+
+      await useCase.execute(makeDiagramCreatedEvent());
+
+      const publishPayload = producer.publishDiagramProcessed.mock.calls[0][0];
+      expect(publishPayload.processing.status).toBe('processed');
+      expect(publishPayload.processing.connections).toEqual([]);
+    });
+  });
+
   describe('should handle agent timeout gracefully and publish failed event', () => {
     it('publishes failed event when agent throws AgentTimeoutError', async () => {
       agentClient.extract.mockRejectedValue(

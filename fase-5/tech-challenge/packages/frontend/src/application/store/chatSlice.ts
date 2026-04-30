@@ -15,6 +15,7 @@ export interface ChatState {
   messages: ChatMessage[];
   currentSessionId: string | null;
   sending: boolean;
+  awaitingResponse: boolean;
   error: string | null;
 }
 
@@ -22,6 +23,7 @@ const initialState: ChatState = {
   messages: [],
   currentSessionId: null,
   sending: false,
+  awaitingResponse: false,
   error: null,
 };
 
@@ -71,13 +73,25 @@ const chatSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    setAwaitingResponse: (state, action: PayloadAction<boolean>) => {
+      state.awaitingResponse = action.payload;
+    },
+    receiveMessage: (state, action: PayloadAction<ChatMessage>) => {
+      state.messages.push(action.payload);
+      if (action.payload.role === 'assistant') {
+        state.awaitingResponse = false;
+      }
+    },
+    setChatError: (state, action: PayloadAction<string | null>) => {
+      state.error = action.payload;
+      state.awaitingResponse = false;
+    },
   },
   extraReducers: (builder) => {
     builder
       .addCase(sendMessage.pending, (state, action) => {
         state.sending = true;
         state.error = null;
-        // Optimistically add user message
         const userMessage: ChatMessage = {
           id: crypto.randomUUID(),
           sessionId: action.meta.arg.sessionId,
@@ -103,6 +117,14 @@ const chatSlice = createSlice({
   },
 });
 
-export const { addLocalMessage, clearMessages, setCurrentSession, clearError } = chatSlice.actions;
+export const {
+  addLocalMessage,
+  clearMessages,
+  setCurrentSession,
+  clearError,
+  setAwaitingResponse,
+  receiveMessage,
+  setChatError,
+} = chatSlice.actions;
 
 export default chatSlice.reducer;

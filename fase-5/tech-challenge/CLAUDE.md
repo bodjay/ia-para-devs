@@ -10,4 +10,4 @@
 - [Descreve as práticas de qualidade, logs estruturados e testes (QUALITY_OBSERVABILITY)](@doc/QUALITY_OBSERVABILITY.md)
 
 ## Deveres
-- Qualquer alteração estrutural dedve ser documentada em seus respectivos arquivos.
+- Qualquer alteração estrutural deve ser documentada em seus respectivos arquivos.

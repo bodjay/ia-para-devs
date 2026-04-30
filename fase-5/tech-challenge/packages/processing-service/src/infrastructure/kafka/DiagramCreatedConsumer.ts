@@ -12,7 +12,7 @@ export class DiagramCreatedConsumer {
   ) {
     this.consumer = kafka.consumer({
       groupId: this.groupId,
-      sessionTimeout: 90_000,
+      sessionTimeout: 420_000,  // 7 min — covers the 6 min extraction agent timeout
       heartbeatInterval: 3_000,
     });
   }

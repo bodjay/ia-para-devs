@@ -1,6 +1,7 @@
 import { ExtractDiagramUseCase } from '../../../src/application/use-cases/ExtractDiagramUseCase';
 import { IVisionClient, VisionExtractionResponse } from '../../../src/infrastructure/ai/IVisionClient';
 import { ExtractDiagramInput } from '../../../src/domain/use-cases/IExtractDiagramUseCase';
+import { ProcessingServiceClient } from '../../../src/infrastructure/tools/ProcessingServiceClient';
 
 type ClaudeExtractionResponse = VisionExtractionResponse;
 
@@ -65,6 +66,7 @@ const makePdfInput = (): ExtractDiagramInput => ({
 
 describe('ExtractDiagramUseCase', () => {
   let claudeVisionClient: jest.Mocked<IVisionClient>;
+  let processingClient: jest.Mocked<ProcessingServiceClient>;
   let useCase: ExtractDiagramUseCase;
 
   beforeEach(() => {
@@ -72,7 +74,13 @@ describe('ExtractDiagramUseCase', () => {
       extractFromUrl: jest.fn().mockResolvedValue(makeClaudeResponse()),
     } as jest.Mocked<IVisionClient>;
 
-    useCase = new ExtractDiagramUseCase(claudeVisionClient);
+    processingClient = {
+      ocr: jest.fn().mockResolvedValue(''),
+      createJob: jest.fn().mockResolvedValue('job-001'),
+      updateJob: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<ProcessingServiceClient>;
+
+    useCase = new ExtractDiagramUseCase(claudeVisionClient, processingClient);
   });
 
   describe('file type support', () => {
