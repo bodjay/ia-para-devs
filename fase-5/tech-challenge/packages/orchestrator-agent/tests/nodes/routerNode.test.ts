@@ -14,7 +14,7 @@ describe('routerNode', () => {
     const ollama = createMockOllamaClient();
     const node = createRouterNode(ollama);
 
-    const result = await node({ question: 'anything', analysisContext: null, history: [], route: 'chat', response: '' });
+    const result = await node({ question: 'anything', analysisContext: null, history: [], route: 'chat', response: '', retrievedContext: [] });
 
     expect(result.route).toBe('no_analysis');
     expect(ollama.chat).not.toHaveBeenCalled();
@@ -24,7 +24,7 @@ describe('routerNode', () => {
     const ollama = createMockOllamaClient('risk_analysis');
     const node = createRouterNode(ollama);
 
-    const result = await node({ question: 'What are the risks?', analysisContext, history: [], route: 'chat', response: '' });
+    const result = await node({ question: 'What are the risks?', analysisContext, history: [], route: 'chat', response: '', retrievedContext: [] });
 
     expect(result.route).toBe('risk_analysis');
     expect(ollama.chat).toHaveBeenCalledTimes(1);
@@ -34,7 +34,7 @@ describe('routerNode', () => {
     const ollama = createMockOllamaClient('unknown_route_xyz');
     const node = createRouterNode(ollama);
 
-    const result = await node({ question: 'Tell me more', analysisContext, history: [], route: 'chat', response: '' });
+    const result = await node({ question: 'Tell me more', analysisContext, history: [], route: 'chat', response: '', retrievedContext: [] });
 
     expect(result.route).toBe('chat');
   });
@@ -46,7 +46,7 @@ describe('routerNode', () => {
       const ollama = createMockOllamaClient(route);
       const node = createRouterNode(ollama);
 
-      const result = await node({ question: 'question', analysisContext, history: [], route: 'chat', response: '' });
+      const result = await node({ question: 'question', analysisContext, history: [], route: 'chat', response: '', retrievedContext: [] });
 
       expect(result.route).toBe(route);
     }
@@ -56,7 +56,7 @@ describe('routerNode', () => {
     const ollama = createMockOllamaClient('  recommendations  ');
     const node = createRouterNode(ollama);
 
-    const result = await node({ question: 'How can we improve?', analysisContext, history: [], route: 'chat', response: '' });
+    const result = await node({ question: 'How can we improve?', analysisContext, history: [], route: 'chat', response: '', retrievedContext: [] });
 
     expect(result.route).toBe('recommendations');
   });

@@ -22,6 +22,10 @@ export const GraphState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => '',
   }),
+  retrievedContext: Annotation<string[]>({
+    reducer: (_, next) => next,
+    default: () => [],
+  }),
 });
 
 export type GraphStateType = typeof GraphState.State;

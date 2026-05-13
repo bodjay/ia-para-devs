@@ -1,10 +1,12 @@
 import { END, START, StateGraph } from '@langchain/langgraph';
 import { OllamaClient } from '../ai/OllamaClient';
+import { VectorServiceClient } from '../http/VectorServiceClient';
 import { GraphState, GraphStateType } from './state';
 import { createRouterNode } from './nodes/routerNode';
 import { createConversationNode } from './nodes/conversationNode';
 import { createRiskNode } from './nodes/riskNode';
 import { createRecommendationNode } from './nodes/recommendationNode';
+import { createRetrievalNode } from './nodes/retrievalNode';
 import { RouteType } from '../../domain/entities/OrchestratorState';
 
 function noAnalysisNode(_state: GraphStateType): Partial<GraphStateType> {
@@ -25,14 +27,19 @@ function selectRoute(state: GraphStateType): string {
   return routeMap[route] ?? 'conversation';
 }
 
-export function buildOrchestratorGraph(ollama: OllamaClient = new OllamaClient()) {
+export function buildOrchestratorGraph(
+  ollama: OllamaClient = new OllamaClient(),
+  vectorClient: VectorServiceClient = new VectorServiceClient()
+) {
   return new StateGraph(GraphState)
+    .addNode('retrieval', createRetrievalNode(vectorClient))
     .addNode('router', createRouterNode(ollama))
     .addNode('conversation', createConversationNode(ollama))
     .addNode('risk', createRiskNode(ollama))
     .addNode('recommendation', createRecommendationNode(ollama))
     .addNode('no_analysis', noAnalysisNode)
-    .addEdge(START, 'router')
+    .addEdge(START, 'retrieval')
+    .addEdge('retrieval', 'router')
     .addConditionalEdges('router', selectRoute, {
       conversation: 'conversation',
       risk: 'risk',

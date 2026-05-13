@@ -18,6 +18,7 @@ const baseState = {
   history: [],
   route: 'risk_analysis' as const,
   response: '',
+  retrievedContext: [] as string[],
 };
 
 describe('riskNode', () => {

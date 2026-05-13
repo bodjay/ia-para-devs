@@ -18,6 +18,7 @@ flowchart TB
     %% Tool Servers (HTTP)
     PS["processing-service\n(tool server)"]
     RS["report-service\n(tool server)"]
+    VS["vector-service\n(tool server)"]
 
     %% AI Agents — Kafka-native workers
     OA["orchestrator-agent (LangGraph)"]
@@ -29,6 +30,7 @@ flowchart TB
     DBU[("upload-db")]
     DBP[("processing-db")]
     DBR[("report-db")]
+    CHROMA[("chromadb\n(vector store)")]
 
     %% Tópicos Kafka
     T1(["diagram.created"])
@@ -49,6 +51,8 @@ flowchart TB
     AAA -->|HTTP POST /tools/reports| RS
     AAA --> T3
     T3 --> BFF
+    T3 --> VS
+    VS -->|embeddings + upsert| CHROMA
 
     %% Fluxo de chat
     FE <-->|WebSocket /ws/sessions/:id| BFF
@@ -56,17 +60,21 @@ flowchart TB
     T4 --> OA
 
     subgraph OrchestratorGraph ["LangGraph StateGraph"]
+        Retrieval["retrieval_node (RAG)"]
         Router["router_node (LLM classifier)"]
         Conv["conversation_node"]
         Risk["risk_node"]
         Rec["recommendation_node"]
 
+        Retrieval --> Router
         Router -->|chat| Conv
         Router -->|risk_analysis| Risk
         Router -->|recommendations| Rec
     end
 
     OA --> OrchestratorGraph
+    OrchestratorGraph -->|GET /tools/search| VS
+    VS -->|semantic search| CHROMA
     OA --> T5
     T5 --> BFF
 
@@ -82,7 +90,7 @@ flowchart TB
 |---------------------|----------------------------|--------------------------------|------------------------------------------------------------------------------------|
 | `diagram.created`   | upload-service             | processing-service             | Dispara o pipeline de extração após upload                                         |
 | `diagram.processed` | processing-service         | architecture-analysis-agent    | Carrega elementos e conexões extraídos para disparo da análise                     |
-| `analysis.completed`| architecture-analysis-agent| bff                            | Atualiza status da análise no BFF                                                  |
+| `analysis.completed`| architecture-analysis-agent| bff, vector-service            | Atualiza status da análise no BFF e vetoriza o relatório no Chroma                 |
 | `chat.requested`    | bff                        | orchestrator-agent             | Envia pergunta do usuário ao orchestrator                                          |
 | `chat.responded`    | orchestrator-agent         | bff                            | Retorna resposta ao BFF para push via WebSocket                                    |
 
@@ -129,3 +137,4 @@ src/
 - WebSocket (ws ^8.18 — BFF)
 - LangGraph (orchestrator-agent)
 - Ollama / Claude API (AI inference)
+- Chroma (vector store) + Ollama `nomic-embed-text` (embeddings RAG)

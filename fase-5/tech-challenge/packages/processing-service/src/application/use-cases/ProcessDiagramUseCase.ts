@@ -50,12 +50,13 @@ export class ProcessDiagramUseCase implements IProcessDiagramUseCase {
 
     try {
       let extractedText = '';
+      console.log(`[ProcessDiagramUseCase] Iniciando extração Textract | diagramId=${event.diagram.id} storageUrl=${event.diagram.storageUrl}`);
       try {
         extractedText = await this.textractAdapter.extractText(event.diagram.storageUrl);
+        console.log(`[ProcessDiagramUseCase] Textract concluído | diagramId=${event.diagram.id} chars=${extractedText.length}`);
       } catch (textractError) {
         console.warn(
-          'Textract extraction failed, proceeding without pre-extracted text:',
-          (textractError as Error).message
+          `[ProcessDiagramUseCase] Textract falhou | diagramId=${event.diagram.id} erro="${(textractError as Error).message}"`
         );
       }
 

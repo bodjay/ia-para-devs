@@ -18,6 +18,7 @@ const baseState = {
   history: [],
   route: 'chat' as const,
   response: '',
+  retrievedContext: [] as string[],
 };
 
 describe('conversationNode', () => {
