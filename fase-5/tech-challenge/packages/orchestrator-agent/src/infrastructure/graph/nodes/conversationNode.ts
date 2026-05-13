@@ -6,8 +6,16 @@ import { CompactComponent } from '../../../domain/entities/OrchestratorState';
 const MAX_HISTORY = 6;
 const logger = new Logger('conversation-node');
 
-function buildSystemPrompt(summary: string, components: CompactComponent[]): string {
+function buildSystemPrompt(
+  summary: string,
+  components: CompactComponent[],
+  retrievedContext: string[]
+): string {
   const lines = components.map((c) => `- ${c.name}(${c.type}): ${c.description}`).join('\n');
+  const ragSection =
+    retrievedContext.length > 0
+      ? `\n\n## Contexto de Análises Anteriores\n${retrievedContext.map((t) => `- ${t}`).join('\n')}`
+      : '';
   return `You are an expert software architecture assistant. Answer questions about the diagram below.
 /no_think
 
@@ -15,7 +23,7 @@ function buildSystemPrompt(summary: string, components: CompactComponent[]): str
 ${summary}
 
 ## Components
-${lines}
+${lines}${ragSection}
 
 Answer concisely and technically in pt-BR.`;
 }
@@ -25,7 +33,7 @@ export function createConversationNode(ollama: OllamaClient) {
     const ctx = state.analysisContext!;
     logger.info('Generating conversation response', { components: ctx.components.length });
 
-    const system = buildSystemPrompt(ctx.summary, ctx.components);
+    const system = buildSystemPrompt(ctx.summary, ctx.components, state.retrievedContext ?? []);
     const recentHistory = state.history.slice(-MAX_HISTORY);
 
     const response = await ollama.chat([

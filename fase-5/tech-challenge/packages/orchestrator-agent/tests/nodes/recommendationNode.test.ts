@@ -18,6 +18,7 @@ const baseState = {
   history: [],
   route: 'recommendations' as const,
   response: '',
+  retrievedContext: [] as string[],
 };
 
 describe('recommendationNode', () => {

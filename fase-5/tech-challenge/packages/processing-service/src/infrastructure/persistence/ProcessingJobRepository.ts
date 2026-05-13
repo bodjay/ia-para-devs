@@ -7,7 +7,8 @@ interface ProcessingJobDocument extends Document {
   diagramId: string;
   status: string;
   extractedText: string;
-  elements: Array<{ type: string; label: string; position: { x: number; y: number } }>;
+  elements: Array<{ id: string; type: string; label: string; position: { x: number; y: number } }>;
+  connections: Array<{ fromElementId: string; toElementId: string; type: string; label: string }>;
   error?: { code: string; message: string };
   createdAt: Date;
 }
@@ -19,9 +20,18 @@ const ProcessingJobSchema = new Schema<ProcessingJobDocument>({
   extractedText: { type: String, default: '' },
   elements: [
     {
+      id: String,
       type: { type: String },
       label: String,
       position: { x: Number, y: Number },
+    },
+  ],
+  connections: [
+    {
+      fromElementId: String,
+      toElementId: String,
+      type: { type: String },
+      label: String,
     },
   ],
   error: { code: String, message: String },
@@ -38,6 +48,7 @@ export class ProcessingJobRepository implements IProcessingJobRepository {
       status: job.status,
       extractedText: job.extractedText,
       elements: job.elements,
+      connections: job.connections,
       error: job.error,
       createdAt: job.createdAt,
     });
@@ -62,6 +73,7 @@ export class ProcessingJobRepository implements IProcessingJobRepository {
         status: job.status,
         extractedText: job.extractedText,
         elements: job.elements,
+        connections: job.connections,
         error: job.error,
       }
     );
@@ -75,6 +87,7 @@ export class ProcessingJobRepository implements IProcessingJobRepository {
       status: doc.status as ProcessingJob['status'],
       extractedText: doc.extractedText,
       elements: doc.elements as any,
+      connections: doc.connections as any,
       error: doc.error,
       createdAt: doc.createdAt,
     });
