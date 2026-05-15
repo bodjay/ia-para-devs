@@ -10,15 +10,17 @@ O arquivo `docker-compose.yaml` na raiz do projeto orquestra todos os serviços 
 |---|---|---|---|
 | `zookeeper` | `confluentinc/cp-zookeeper:7.6.0` | — | Coordenação do Kafka |
 | `kafka` | `confluentinc/cp-kafka:7.6.0` | 9092 | Message broker |
-| `mongo` | `mongo:7.0` | 27017 | Banco de dados (compartilhado entre serviços) |
+| `mongo` | `mongo:7.0` | 27018→27017 | Banco de dados |
+| `redis` | `redis:7-alpine` | 6379 | Upload tokens + sessões WebSocket |
+| `chromadb` | `chromadb/chroma:latest` | 8000 | Vector store para RAG |
 | `ollama` | `ollama/ollama:latest` | 11434 | LLM local (profile: `ollama`) |
-| `orchestrator-agent` | build | 3005 | Orquestrador LangGraph — roteamento e chat com LLM |
-| `diagram-extraction-agent` | build | 3003 | Extração de elementos via Claude ou Ollama |
-| `architecture-analysis-agent` | build | 3004 | Análise de riscos via Claude ou Ollama |
+| `orchestrator-agent` | build | 3005 (interno) | Orquestrador LangGraph — roteamento e chat com LLM |
+| `architecture-analysis-agent` | build | — | Análise de riscos via Claude ou Ollama |
 | `bff` | build | 3001 | API Gateway |
 | `upload-service` | build | 3002 | Upload de diagramas para S3 |
-| `processing-service` | build | — (interno: 3001) | Tool server HTTP: OCR e rastreamento de jobs |
+| `processing-service` | build | — (interno: 3001) | Kafka consumer: OCR via Textract + publica diagram.processed |
 | `report-service` | build | — | Tool server HTTP: persistência de relatórios |
+| `vector-service` | build | 3006 | Embeddings + busca semântica (ChromaDB) |
 | `frontend` | build | 3000 | SPA React (servida via Nginx) |
 
 #### Profiles
@@ -29,7 +31,7 @@ O serviço `ollama` só é iniciado quando o profile `ollama` é ativado:
 docker compose --profile ollama up
 ```
 
-Sem o profile, o `diagram-extraction-agent` usa Claude (`AI_PROVIDER=claude` por padrão).
+Sem o profile, use `AI_PROVIDER=claude` para os agentes usarem a Claude API.
 
 #### Variáveis de ambiente injetadas
 
@@ -37,21 +39,15 @@ As variáveis são lidas do arquivo `.env` na raiz. Consulte `.env.example` para
 
 Variáveis com fallback no compose (ex: `${AWS_REGION:-us-east-1}`) usam o valor padrão quando não definidas.
 
-**Variáveis de conectividade entre serviços:**
-
-| Variável | Serviço que lê | Valor no Docker | Valor recomendado em dev local |
-|---|---|---|---|
-| `PROCESSING_SERVICE_URL` | `diagram-extraction-agent` | `http://processing-service:3001` (fixo no compose) | `http://localhost:3005` |
-| `PROCESSING_PORT` | `processing-service` | `3001` (padrão) | `3005` (evita conflito com BFF na 3001) |
-
-> Em Docker, `PROCESSING_SERVICE_URL` é injetado diretamente no compose e não precisa estar no `.env`. Para desenvolvimento local fora do Docker, defina ambas as variáveis no `.env`.
-
 #### Volumes
 
 | Volume | Uso |
 |---|---|
 | `mongo-data` | Persistência do MongoDB |
+| `uploads-data` | Arquivos em modo local (quando `STORAGE_BACKEND=local`) |
 | `ollama-data` | Cache de modelos do Ollama |
+| `chroma-data` | Índices vetoriais do ChromaDB |
+| `redis-data` | Persistência do Redis |
 
 ---
 
@@ -63,7 +59,7 @@ Variáveis com fallback no compose (ex: `${AWS_REGION:-us-east-1}`) usam o valor
 - Referência: [@aws-sdk/client-s3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-client-s3/)
 
 #### Textract
-- O `processing-service` extrai texto bruto dos documentos armazenados no S3 via `@aws-sdk/client-textract`.
+- O `processing-service` extrai texto dos documentos armazenados no S3 via `@aws-sdk/client-textract`.
 - Permissão necessária: `textract:DetectDocumentText`.
 - Referência: [@aws-sdk/client-textract](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-client-textract/)
 

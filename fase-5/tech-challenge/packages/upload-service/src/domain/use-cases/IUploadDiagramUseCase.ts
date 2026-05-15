@@ -11,11 +11,12 @@ export interface UploadDiagramInput {
     name: string;
     email: string;
   };
+  sessionId?: string;
 }
 
 export interface UploadDiagramOutput {
   diagramId: string;
-  status: 'uploaded';
+  status: 'uploaded' | 'queued';
   storageUrl: string;
   uploadedAt: string; // ISO-8601
 }

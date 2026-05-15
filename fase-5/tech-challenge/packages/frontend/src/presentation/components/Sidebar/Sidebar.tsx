@@ -3,20 +3,31 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   List,
+  ListItem,
   ListItemButton,
   ListItemText,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import IosShareIcon from '@mui/icons-material/IosShare';
 import { RootState, AppDispatch } from '../../../application/store';
 import {
   createSessionAsync,
+  renameSessionAsync,
   selectSession,
   searchSessions,
   SessionRecord,
 } from '../../../application/store/sessionsSlice';
+import { bffClient } from '../../../infrastructure/api/bffClient';
 
 export interface SidebarProps {
   onSessionCreate?: (sessionId: string) => void;
@@ -30,6 +41,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onSessionCreate, onSessionSelect }) =
   );
 
   const [localSearch, setLocalSearch] = useState(searchTerm);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [exportText, setExportText] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const displaySessions = searchTerm ? filteredSessions : sessions;
 
@@ -55,6 +70,36 @@ const Sidebar: React.FC<SidebarProps> = ({ onSessionCreate, onSessionSelect }) =
   const handleSearch = (value: string) => {
     setLocalSearch(value);
     dispatch(searchSessions(value));
+  };
+
+  const startRename = (session: SessionRecord) => {
+    setRenamingId(session.id);
+    setRenameValue(session.name);
+  };
+
+  const commitRename = async () => {
+    if (!renamingId || !renameValue.trim()) {
+      setRenamingId(null);
+      return;
+    }
+    await dispatch(renameSessionAsync({ id: renamingId, name: renameValue.trim() }));
+    setRenamingId(null);
+  };
+
+  const handleExport = async (sessionId: string) => {
+    setExportLoading(true);
+    try {
+      const result = await bffClient.exportSession(sessionId);
+      setExportText(result.text);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleCopy = () => {
+    if (exportText) {
+      navigator.clipboard.writeText(exportText);
+    }
   };
 
   return (
@@ -90,22 +135,97 @@ const Sidebar: React.FC<SidebarProps> = ({ onSessionCreate, onSessionSelect }) =
       ) : (
         <List dense>
           {sortedSessions.map((session) => (
-            <ListItemButton
+            <ListItem
               key={session.id}
-              role="option"
-              selected={session.id === currentSessionId}
-              onClick={() => handleSelectSession(session.id)}
-              aria-current={session.id === currentSessionId ? 'true' : undefined}
+              disablePadding
+              sx={{
+                '& .session-actions': { visibility: 'hidden' },
+                '&:hover .session-actions': { visibility: 'visible' },
+              }}
+              secondaryAction={
+                <Box className="session-actions" sx={{ display: 'flex', gap: 0.5 }}>
+                  <Tooltip title="Renomear">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startRename(session);
+                      }}
+                      aria-label={`Renomear ${session.name}`}
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Exportar conversa">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExport(session.id);
+                      }}
+                      disabled={exportLoading}
+                      aria-label={`Exportar conversa de ${session.name}`}
+                    >
+                      <IosShareIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              }
             >
-              <ListItemText
-                primary={session.name}
-                secondary={new Date(session.lastActiveAt).toLocaleDateString('pt-BR')}
-                primaryTypographyProps={{ noWrap: true }}
-              />
-            </ListItemButton>
+              <ListItemButton
+                role="option"
+                selected={session.id === currentSessionId}
+                onClick={() => handleSelectSession(session.id)}
+                aria-current={session.id === currentSessionId ? 'true' : undefined}
+                sx={{ pr: 9 }}
+              >
+                {renamingId === session.id ? (
+                  <TextField
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRename();
+                      if (e.key === 'Escape') setRenamingId(null);
+                    }}
+                    size="small"
+                    autoFocus
+                    fullWidth
+                    onClick={(e) => e.stopPropagation()}
+                    inputProps={{ 'aria-label': 'Novo nome da sessão' }}
+                  />
+                ) : (
+                  <ListItemText
+                    primary={session.name}
+                    secondary={new Date(session.lastActiveAt).toLocaleDateString('pt-BR')}
+                    primaryTypographyProps={{ noWrap: true }}
+                  />
+                )}
+              </ListItemButton>
+            </ListItem>
           ))}
         </List>
       )}
+
+      <Dialog open={exportText !== null} onClose={() => setExportText(null)} maxWidth="md" fullWidth>
+        <DialogTitle>Exportar conversa para prompt</DialogTitle>
+        <DialogContent>
+          <TextField
+            value={exportText ?? ''}
+            multiline
+            rows={16}
+            fullWidth
+            inputProps={{ readOnly: true, 'aria-label': 'Prompt exportado' }}
+            sx={{ mt: 1, fontFamily: 'monospace' }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExportText(null)}>Fechar</Button>
+          <Button variant="contained" onClick={handleCopy}>
+            Copiar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

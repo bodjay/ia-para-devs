@@ -11,16 +11,19 @@ export class OllamaClient {
   readonly baseUrl: string;
   readonly model: string;
   readonly timeoutMs: number;
+  readonly routerTimeoutMs: number;
 
   constructor() {
     this.baseUrl = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434';
     this.model = process.env.OLLAMA_MODEL ?? 'qwen3:4b';
-    this.timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS ?? '120000', 10);
+    this.timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS ?? '300000', 10);
+    this.routerTimeoutMs = parseInt(process.env.OLLAMA_ROUTER_TIMEOUT_MS ?? '45000', 10);
   }
 
-  async chat(messages: ChatMessage[]): Promise<string> {
+  async chat(messages: ChatMessage[], timeoutOverrideMs?: number): Promise<string> {
+    const timeout = timeoutOverrideMs ?? this.timeoutMs;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     logger.info('Sending chat request', { model: this.model, messages: messages.length });
 
@@ -43,8 +46,8 @@ export class OllamaClient {
       return content;
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
-        logger.error('Ollama request timed out', { model: this.model, timeoutMs: this.timeoutMs });
-        throw new Error(`Ollama request timed out after ${this.timeoutMs}ms`);
+        logger.error('Ollama request timed out', { model: this.model, timeoutMs: timeout });
+        throw new Error(`Ollama request timed out after ${timeout}ms`);
       }
       logger.error('Ollama request failed', { model: this.model, error: (err as Error).message });
       throw err;

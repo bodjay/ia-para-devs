@@ -36,6 +36,7 @@ export interface IAnalysisClient {
   analyze(
     elements: AnalysisElement[],
     connections: AnalysisConnection[],
-    options: AnalysisOptions
+    options: AnalysisOptions,
+    extractedText?: string
   ): Promise<AnalysisResponse>;
 }

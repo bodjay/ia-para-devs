@@ -1,51 +1,75 @@
 ## Microserviços
 
-Cada serviço possúi banco de dados próprio e testes automatizados.
+Cada serviço possui banco de dados próprio e testes automatizados.
 
 ### Serviços ativos
 
 - [serviço de api-gateway bff](@services/bff.md)
 - [Serviço que lida com o upload de arquivo (upload-service)](@services/upload-service.md)
 
-### Tool Servers (serviços de suporte aos agentes)
+### processing-service
 
-`processing-service` e `report-service` operam como **HTTP tool servers**: expõem endpoints de capacidades especializadas que os agentes invocam via tool calling (Ollama / qwen3:2b). Eles não consomem Kafka diretamente — os agentes são os consumidores Kafka.
+Serviço **Kafka-native** responsável por acionar o OCR via AWS Textract e publicar o resultado na pipeline de análise.
 
-#### processing-service
-
-Provê capacidades de OCR e rastreamento de jobs para o `diagram-extraction-agent`.
-
-- **Porta:** `PROCESSING_PORT` (default: `3001`; recomendado `3005` em dev local para não conflitar com a BFF)
-- **URL interna (Docker):** `http://processing-service:3001` — configurada via `PROCESSING_SERVICE_URL` no `diagram-extraction-agent`
+- **Porta:** sem porta exposta (serviço interno, acesso apenas via Kafka)
+- **Kafka consumer:** `diagram.created` (group: `processing-service-group`)
+- **Kafka producer:** `diagram.processed`
 - **Banco:** MongoDB (`arch-analyzer-processing`)
-- **Endpoints:**
-  - `POST /tools/ocr` — `{ s3Url }` → executa AWS Textract → `{ extractedText }`
-  - `POST /tools/jobs` — `{ diagramId }` → cria ProcessingJob → `{ jobId }`
-  - `PUT /tools/jobs/:id` — `{ status, extractedText?, elements?, connections?, error? }` → atualiza job
+- **AWS:** Textract via `@aws-sdk/client-textract`
 
-**Schema de `DiagramElement`** (campo `elements` do PUT e do evento `diagram.processed`):
+**Fluxo:**
+1. Consome `diagram.created` do Kafka
+2. Chama AWS Textract para extração de texto do arquivo em S3
+3. Persiste `ProcessingJob` no MongoDB
+4. Publica `diagram.processed` com o texto OCR extraído
+
+**Endpoints HTTP (debug/utilitário):**
+- `POST /tools/ocr` — `{ s3Url }` → executa Textract → `{ extractedText }`
+- `POST /tools/jobs` — `{ diagramId }` → cria ProcessingJob → `{ jobId }`
+- `PUT /tools/jobs/:id` — atualiza status/resultado do job
+
+**Schema de `DiagramElement`** (campo `elements` do evento `diagram.processed`):
 
 ```ts
 {
-  id: string;          // ID gerado pela IA — vincula ao fromElementId/toElementId das conexões
+  id: string;
   type: 'microservice' | 'database' | 'broker' | 'client' | 'unknown';
   label: string;
   position: { x: number; y: number };
 }
 ```
 
-> O campo `id` é essencial para que o `architecture-analysis-agent` resolva as conexões (`fromElementId` / `toElementId`) publicadas no evento `diagram.processed`.
+### report-service
 
-#### report-service
+Tool server HTTP para persistência de relatórios gerados pelo `architecture-analysis-agent`.
 
-Provê persistência de relatórios para o `architecture-analysis-agent`. Mantém também um consumer Kafka passivo de `analysis.completed` para auditoria.
-
-- **Porta:** `REPORT_PORT` (default: `3002`)
+- **Porta:** sem porta exposta (serviço interno, chamado apenas pelo `architecture-analysis-agent`)
 - **Banco:** MongoDB (`arch-analyzer-reports`)
 - **Endpoints:**
   - `POST /tools/reports` — recebe `AnalysisCompletedEvent` → cria/atualiza Report → `{ reportId }`
 
 ---
+
+### orchestrator-agent
+
+Agente **Kafka-native** com servidor HTTP. Roteador de chat usando LangGraph StateGraph com RAG.
+
+- **Porta:** `3005` (interno — sem porta exposta no host; acessado pelo BFF via `http://orchestrator-agent:3005`)
+- **Kafka consumer:** `chat.requested` (group: `orchestrator-agent-group`)
+- **Kafka producer:** `chat.responded`
+- **Endpoints HTTP:**
+  - `POST /analysis/chat` — `{ question, analysisContext, history }` → `{ response, route }` (fallback HTTP)
+  - `POST /context/export` — `{ sessionName, analysis, conversationTopics }` → `{ text }` (gera prompt para Claude Code)
+
+### vector-service
+
+Tool server HTTP para busca semântica. Vetoriza relatórios de análise e serve queries RAG.
+
+- **Porta:** `3006`
+- **Kafka consumer:** `analysis.completed` — gera embeddings e upserta no ChromaDB
+- **Banco:** ChromaDB (`arch-analyzer-vectors`)
+- **Endpoints:**
+  - `GET /tools/search?q=<query>` — busca semântica → retorna chunks com score ≤ 0.6
 
 ### bff
 

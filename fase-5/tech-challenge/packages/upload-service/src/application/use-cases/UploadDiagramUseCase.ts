@@ -7,7 +7,7 @@ import {
   UploadDiagramInput,
   UploadDiagramOutput,
 } from '../../domain/use-cases/IUploadDiagramUseCase';
-import { IStorageAdapter, StorageError } from '../../infrastructure/storage/IStorageAdapter';
+import { IStorageAdapter } from '../../infrastructure/storage/IStorageAdapter';
 import {
   DiagramEventProducer,
   KafkaProducerError,
@@ -34,27 +34,23 @@ export class UploadDiagramUseCase implements IUploadDiagramUseCase {
   ) {}
 
   async execute(input: UploadDiagramInput): Promise<UploadDiagramOutput> {
-    // Validate user
     const userValidation = userSchema.safeParse(input.user);
     if (!userValidation.success) {
       throw new ValidationError(userValidation.error.errors[0].message);
     }
 
-    // Validate file type
     if (!SUPPORTED_FILE_TYPES.includes(input.file.type as any)) {
       throw new ValidationError(
         `Unsupported file type: ${input.file.type}. Supported types: ${SUPPORTED_FILE_TYPES.join(', ')}`
       );
     }
 
-    // Validate file size
     if (input.file.size > MAX_FILE_SIZE_BYTES) {
       throw new ValidationError(
         `File size ${input.file.size} exceeds maximum allowed size of ${MAX_FILE_SIZE_BYTES} bytes`
       );
     }
 
-    // Upload to storage
     const storageUrl = await this.storageAdapter.upload({
       name: input.file.name,
       size: input.file.size,
@@ -63,7 +59,6 @@ export class UploadDiagramUseCase implements IUploadDiagramUseCase {
       path: input.file.path,
     });
 
-    // Create domain entity
     const diagram = new Diagram({
       id: uuidv4(),
       fileName: input.file.name,
@@ -73,10 +68,8 @@ export class UploadDiagramUseCase implements IUploadDiagramUseCase {
       userId: input.user.id,
     });
 
-    // Persist to repository
     await this.repository.save(diagram);
 
-    // Publish Kafka event
     try {
       await this.eventProducer.publishDiagramCreated({
         diagram: {
@@ -94,8 +87,6 @@ export class UploadDiagramUseCase implements IUploadDiagramUseCase {
       });
     } catch (error) {
       if (error instanceof KafkaProducerError) {
-        // Log but don't fail the upload - the diagram is already stored
-        // A retry mechanism or dead-letter queue should handle this in production
         throw error;
       }
       throw error;
@@ -103,7 +94,7 @@ export class UploadDiagramUseCase implements IUploadDiagramUseCase {
 
     return {
       diagramId: diagram.id,
-      status: 'uploaded',
+      status: 'queued',
       storageUrl: diagram.storageUrl,
       uploadedAt: diagram.uploadedAt.toISOString(),
     };

@@ -51,6 +51,18 @@ export const createSessionAsync = createAsyncThunk(
   }
 );
 
+export const renameSessionAsync = createAsyncThunk(
+  'sessions/renameSessionAsync',
+  async (payload: { id: string; name: string }, { dispatch, rejectWithValue }) => {
+    try {
+      await bffClient.renameSession(payload.id, payload.name);
+      dispatch(updateSessionName({ id: payload.id, name: payload.name }));
+    } catch (error) {
+      return rejectWithValue((error as Error).message);
+    }
+  }
+);
+
 export const loadLastActiveSession = createAsyncThunk(
   'sessions/loadLastActive',
   async (_, { getState, dispatch }) => {
@@ -163,6 +175,7 @@ export const {
   updateSessionLastActive,
   clearError,
 } = sessionsSlice.actions;
+
 
 
 export default sessionsSlice.reducer;

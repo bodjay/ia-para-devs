@@ -2,62 +2,13 @@
 
 Os agentes de IA são **Kafka-native workers**: consomem eventos de tópicos Kafka, executam inferência com LLM e publicam o resultado em outro tópico.
 
-Os agentes usam **Ollama com o modelo `qwen3:2b`** (suporta tool calling) e delegam capacidades especializadas para os tool servers (`processing-service` e `report-service`) via chamadas HTTP.
-
----
-
-### diagram-extraction-agent
-
-**Responsabilidade:** Extrair e estruturar elementos visuais de diagramas de arquitetura.
-
-**Modo de operação:**
-- Consome: `diagram.created`
-- Publica: `diagram.processed`
-- Consumer group: `extraction-agent-group`
-- Session timeout: 420s (cobre inferência de até 7 min no Ollama)
-
-**Entrada (evento `diagram.created`):**
-```json
-{
-  "diagram": { "id", "fileName", "fileType", "storageUrl" },
-  "user": { "id", "name", "email" }
-}
-```
-
-**Saída (evento `diagram.processed`):**
-```json
-{
-  "diagram": { "id", "fileName", "fileType", "storageUrl" },
-  "processing": {
-    "status": "processed | failed",
-    "extractedText": "...",
-    "elements": [{ "id", "label", "type", "confidence", "boundingBox" }],
-    "connections": [{ "fromElementId", "toElementId", "type" }]
-  }
-}
-```
-
-**Provider de IA:** Ollama (`qwen3:2b`), configurável via `OLLAMA_MODEL`.
-
-**Tools disponíveis (chamadas ao processing-service):**
-
-| Tool | Endpoint | Descrição |
-|---|---|---|
-| `ocr_extract(s3_url)` | `POST /tools/ocr` | Extrai texto do diagrama via AWS Textract |
-| `save_job(diagram_id)` | `POST /tools/jobs` | Cria registro de ProcessingJob no MongoDB |
-| `update_job(job_id, ...)` | `PUT /tools/jobs/:id` | Atualiza status/resultado do job |
-
-**Variáveis de ambiente:**
-- `KAFKA_BROKERS` (default: `localhost:9092`)
-- `OLLAMA_BASE_URL` (default: `http://localhost:11434`)
-- `OLLAMA_MODEL` (default: `qwen3:2b`)
-- `PROCESSING_SERVICE_URL` (default: `http://localhost:3001`)
+Os agentes usam **Ollama com o modelo `qwen3:2b`** (suporta tool calling) ou **Claude API** (configurável via `AI_PROVIDER`).
 
 ---
 
 ### architecture-analysis-agent
 
-**Responsabilidade:** Analisar dados estruturados do diagrama e produzir revisão arquitetural com componentes, riscos e recomendações.
+**Responsabilidade:** Analisar o texto OCR extraído do diagrama e produzir revisão arquitetural com componentes, riscos e recomendações.
 
 **Modo de operação:**
 - Consome: `diagram.processed`
@@ -66,7 +17,7 @@ Os agentes usam **Ollama com o modelo `qwen3:2b`** (suporta tool calling) e dele
 - Session timeout: 300s (cobre inferência de até 5 min no Ollama)
 
 **Entrada (evento `diagram.processed`):**
-Usa `processing.elements` e `processing.connections` do evento.
+Usa `processing.extractedText` (texto OCR do Textract) como contexto principal. Os campos `processing.elements` e `processing.connections` são incluídos quando disponíveis.
 
 **Saída (evento `analysis.completed`):**
 ```json
@@ -83,7 +34,7 @@ Usa `processing.elements` e `processing.connections` do evento.
 }
 ```
 
-**Provider de IA:** Ollama (`qwen3:2b`), configurável via `OLLAMA_MODEL`.
+**Provider de IA:** Ollama (`qwen3:2b`) ou Claude (`claude-sonnet-4-6`), configurável via `AI_PROVIDER` e `OLLAMA_MODEL`.
 
 **Tools disponíveis (chamadas ao report-service):**
 
@@ -94,8 +45,10 @@ Usa `processing.elements` e `processing.connections` do evento.
 **Variáveis de ambiente:**
 - `KAFKA_BROKERS` (default: `localhost:9092`)
 - `OLLAMA_BASE_URL` (default: `http://localhost:11434`)
-- `OLLAMA_MODEL` (default: `qwen3:2b`)
+- `OLLAMA_MODEL` (default: `qwen3:4b`)
 - `REPORT_SERVICE_URL` (default: `http://localhost:3002`)
+- `AI_PROVIDER` (default: `ollama` — use `claude` para Claude API)
+- `ANTHROPIC_API_KEY` (obrigatório se `AI_PROVIDER=claude`)
 
 ---
 
@@ -148,5 +101,7 @@ Usa `processing.elements` e `processing.connections` do evento.
 - `KAFKA_BROKERS` (default: `localhost:9092`)
 - `OLLAMA_BASE_URL` (default: `http://localhost:11434`)
 - `OLLAMA_MODEL` (default: `qwen3:4b`)
+- `OLLAMA_TIMEOUT_MS` (default: `300000`)
+- `OLLAMA_ROUTER_TIMEOUT_MS` (default: `45000`)
 - `VECTOR_SERVICE_URL` (default: `http://localhost:3006`)
 - `VECTOR_SERVICE_TIMEOUT_MS` (default: `10000`)

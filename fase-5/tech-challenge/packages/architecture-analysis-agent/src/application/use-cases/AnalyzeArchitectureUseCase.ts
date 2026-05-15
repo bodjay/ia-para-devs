@@ -34,7 +34,12 @@ export class AnalyzeArchitectureUseCase implements IAnalyzeArchitectureUseCase {
     let analysis: ArchitectureAnalysis;
 
     try {
-      const response = await this.analysisClient.analyze(payload.elements, payload.connections, options);
+      const response = await this.analysisClient.analyze(
+        payload.elements,
+        payload.connections,
+        options,
+        payload.extractedText
+      );
 
       const risks = options.includeRisks
         ? response.risks.map(

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { ICreateAnalysisUseCase } from '../../domain/use-cases/ICreateAnalysisUseCase';
 import { ISessionRepository } from '../../domain/repositories/ISessionRepository';
 import { IAnalysisRepository } from '../../domain/repositories/IAnalysisRepository';
+import { IUploadTokenStore } from '../../domain/services/IUploadTokenStore';
 import { DiagramFileType, SUPPORTED_FILE_TYPES } from '../../domain/entities/Diagram';
 
 const UPLOAD_SERVICE_URL =
@@ -20,7 +21,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 export function createDiagramRouter(
   createAnalysisUseCase: ICreateAnalysisUseCase,
   sessionRepository: ISessionRepository,
-  analysisRepository: IAnalysisRepository
+  analysisRepository: IAnalysisRepository,
+  uploadTokenStore: IUploadTokenStore
 ): Router {
   const router = Router();
 
@@ -44,6 +46,9 @@ export function createDiagramRouter(
           return;
         }
 
+        // Generate a single-use token for the internal BFF → upload-service call
+        const { token } = await uploadTokenStore.generateToken(sessionId ?? 'system');
+
         // Forward multipart to upload-service using native FormData (Node 18+)
         const form = new FormData();
         const blob = new Blob([new Uint8Array(file.buffer)], { type: file.mimetype });
@@ -54,7 +59,9 @@ export function createDiagramRouter(
           diagramId: string;
           storageUrl: string;
           uploadedAt: string;
-        }>(`${UPLOAD_SERVICE_URL}/upload`, form);
+        }>(`${UPLOAD_SERVICE_URL}/upload`, form, {
+          headers: { 'x-upload-token': token },
+        });
 
         const { diagramId, storageUrl } = uploadRes.data;
 

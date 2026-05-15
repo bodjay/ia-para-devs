@@ -4,10 +4,14 @@ import path from 'path';
 import { UploadController } from './presentation/controllers/UploadController';
 import { IUploadDiagramUseCase } from './domain/use-cases/IUploadDiagramUseCase';
 import { MAX_FILE_SIZE_BYTES } from './domain/entities/Diagram';
+import { UploadTokenValidator } from './infrastructure/redis/UploadTokenValidator';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? '/app/uploads';
 
-export function createApp(uploadUseCase: IUploadDiagramUseCase): Application {
+export function createApp(
+  uploadUseCase: IUploadDiagramUseCase,
+  tokenValidator?: UploadTokenValidator
+): Application {
   const app = express();
   app.use(express.json());
   app.use('/uploads', express.static(path.resolve(UPLOAD_DIR)));
@@ -18,7 +22,7 @@ export function createApp(uploadUseCase: IUploadDiagramUseCase): Application {
     limits: { fileSize: MAX_FILE_SIZE_BYTES + 1 },
   });
 
-  const controller = new UploadController(uploadUseCase);
+  const controller = new UploadController(uploadUseCase, tokenValidator);
 
   app.post('/upload', upload.single('file'), (req, res, next) =>
     controller.upload(req, res, next)

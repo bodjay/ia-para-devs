@@ -5,6 +5,8 @@ import { S3StorageAdapter } from './infrastructure/storage/S3StorageAdapter';
 import { LocalStorageAdapter } from './infrastructure/storage/LocalStorageAdapter';
 import { DiagramEventProducer } from './infrastructure/kafka/DiagramEventProducer';
 import { UploadDiagramUseCase } from './application/use-cases/UploadDiagramUseCase';
+import { getRedisClient, disconnectRedis } from './infrastructure/redis/RedisClient';
+import { UploadTokenValidator } from './infrastructure/redis/UploadTokenValidator';
 import { Kafka } from 'kafkajs';
 
 const PORT = process.env.PORT ?? 3002;
@@ -25,6 +27,9 @@ async function bootstrap(): Promise<void> {
   const producer = new DiagramEventProducer(kafka);
   await producer.connect();
 
+  const redis = getRedisClient();
+  const tokenValidator = new UploadTokenValidator(redis);
+
   const repository = new DiagramRepository();
   const storageAdapter =
     STORAGE_BACKEND === 's3'
@@ -35,7 +40,7 @@ async function bootstrap(): Promise<void> {
 
   const uploadUseCase = new UploadDiagramUseCase(repository, storageAdapter, producer);
 
-  const app = createApp(uploadUseCase);
+  const app = createApp(uploadUseCase, tokenValidator);
 
   app.listen(PORT, () => {
     console.log(`Upload service running on port ${PORT}`);
@@ -43,6 +48,7 @@ async function bootstrap(): Promise<void> {
 
   process.on('SIGTERM', async () => {
     await producer.disconnect();
+    await disconnectRedis();
     process.exit(0);
   });
 }

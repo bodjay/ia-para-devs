@@ -12,17 +12,16 @@ flowchart TB
     %% BFF
     BFF["bff"]
 
-    %% Upload
+    %% Upload e Processing
     US["upload-service"]
+    PS["processing-service\n(Kafka consumer + Textract)"]
 
-    %% Tool Servers (HTTP)
-    PS["processing-service\n(tool server)"]
+    %% Tool Server HTTP
     RS["report-service\n(tool server)"]
     VS["vector-service\n(tool server)"]
 
     %% AI Agents — Kafka-native workers
     OA["orchestrator-agent (LangGraph)"]
-    DEA["diagram-extraction-agent"]
     AAA["architecture-analysis-agent"]
 
     %% Databases
@@ -31,6 +30,10 @@ flowchart TB
     DBP[("processing-db")]
     DBR[("report-db")]
     CHROMA[("chromadb\n(vector store)")]
+
+    %% AWS
+    S3[("AWS S3")]
+    TX["AWS Textract"]
 
     %% Tópicos Kafka
     T1(["diagram.created"])
@@ -42,10 +45,11 @@ flowchart TB
     %% Fluxo de upload e análise
     FE -->|HTTP POST /diagrams/upload| BFF
     BFF -->|HTTP POST /upload| US
+    US -->|armazena arquivo| S3
     US --> T1
     T1 --> PS
-    PS -->|HTTP POST /extract| DEA
-    DEA -->|HTTP /tools/jobs\n/tools/ocr| PS
+    PS -->|OCR| TX
+    PS --> DBP
     PS --> T2
     T2 --> AAA
     AAA -->|HTTP POST /tools/reports| RS
@@ -80,7 +84,6 @@ flowchart TB
 
     BFF --> DBB
     US --> DBU
-    PS --> DBP
     RS --> DBR
 ````
 
@@ -89,10 +92,24 @@ flowchart TB
 | Tópico              | Produtor                   | Consumidor                     | Descrição                                                                          |
 |---------------------|----------------------------|--------------------------------|------------------------------------------------------------------------------------|
 | `diagram.created`   | upload-service             | processing-service             | Dispara o pipeline de extração após upload                                         |
-| `diagram.processed` | processing-service         | architecture-analysis-agent    | Carrega elementos e conexões extraídos para disparo da análise                     |
+| `diagram.processed` | processing-service         | architecture-analysis-agent    | Carrega texto OCR extraído para disparo da análise                                 |
 | `analysis.completed`| architecture-analysis-agent| bff, vector-service            | Atualiza status da análise no BFF e vetoriza o relatório no Chroma                 |
 | `chat.requested`    | bff                        | orchestrator-agent             | Envia pergunta do usuário ao orchestrator                                          |
 | `chat.responded`    | orchestrator-agent         | bff                            | Retorna resposta ao BFF para push via WebSocket                                    |
+
+## Pipeline de Upload e Análise
+
+```
+upload-service → S3 → Kafka: diagram.created
+  ↓ Kafka: diagram.created
+processing-service → AWS Textract → MongoDB (ProcessingJob) → Kafka: diagram.processed
+  ↓ Kafka: diagram.processed
+architecture-analysis-agent → LLM (Ollama/Claude) → report-service → Kafka: analysis.completed
+  ↓ Kafka: analysis.completed
+BFF → WebSocket → Frontend
+```
+
+O `processing-service` é Kafka-native: consome `diagram.created`, chama Textract diretamente e publica `diagram.processed` com o texto extraído. O `architecture-analysis-agent` usa esse texto como contexto primário para o LLM de análise.
 
 ## Comunicação BFF ↔ Frontend (Chat)
 
@@ -138,3 +155,5 @@ src/
 - LangGraph (orchestrator-agent)
 - Ollama / Claude API (AI inference)
 - Chroma (vector store) + Ollama `nomic-embed-text` (embeddings RAG)
+- AWS S3 (armazenamento de diagramas)
+- AWS Textract (OCR — processado pelo processing-service)
