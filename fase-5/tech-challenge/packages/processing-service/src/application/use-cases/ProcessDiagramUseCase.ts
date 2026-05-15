@@ -4,7 +4,7 @@ import {
   IProcessDiagramUseCase,
   DiagramCreatedEvent,
 } from '../../domain/use-cases/IProcessDiagramUseCase';
-import { DiagramProcessedProducer } from '../../infrastructure/kafka/DiagramProcessedProducer';
+import { DiagramProcessedProducer } from '../../infrastructure/redis/DiagramProcessedProducer';
 import { ITextractAdapter } from '../../infrastructure/textract/TextractAdapter';
 
 export class ProcessDiagramUseCase implements IProcessDiagramUseCase {

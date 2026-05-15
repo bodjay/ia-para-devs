@@ -120,6 +120,8 @@ services:
       dockerfile: packages/architecture-analysis-agent/Dockerfile
     environment:
       KAFKA_BROKERS: kafka:9092
+      REDIS_URL: redis://redis:6379
+      REPORT_SERVICE_URL: http://report-service:3002
       AI_PROVIDER: ${AI_PROVIDER:-ollama}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
@@ -127,6 +129,10 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      report-service:
+        condition: service_started
     restart: unless-stopped
 
   # ─── Backend Services ─────────────────────────────────────────────────────
@@ -187,15 +193,14 @@ services:
       dockerfile: packages/processing-service/Dockerfile
     environment:
       MONGO_URI: mongodb://mongo:27017/arch-analyzer-processing
-      KAFKA_BROKERS: kafka:9092
+      REDIS_URL: redis://redis:6379
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      KAFKAJS_NO_PARTITIONER_WARNING: 1
     depends_on:
       mongo:
         condition: service_healthy
-      kafka:
+      redis:
         condition: service_healthy
     restart: unless-stopped
 

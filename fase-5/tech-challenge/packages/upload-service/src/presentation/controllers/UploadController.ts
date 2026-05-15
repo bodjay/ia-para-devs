@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { IUploadDiagramUseCase } from '../../domain/use-cases/IUploadDiagramUseCase';
 import { ValidationError } from '../../application/use-cases/UploadDiagramUseCase';
 import { StorageError } from '../../infrastructure/storage/IStorageAdapter';
-import { KafkaProducerError } from '../../infrastructure/kafka/DiagramEventProducer';
 import { SUPPORTED_FILE_TYPES, MAX_FILE_SIZE_BYTES } from '../../domain/entities/Diagram';
 import { UploadTokenValidator } from '../../infrastructure/redis/UploadTokenValidator';
 

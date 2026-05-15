@@ -3,8 +3,8 @@ import { IDiagramRepository } from '../../../src/domain/repositories/IDiagramRep
 import { IStorageAdapter, StorageError } from '../../../src/infrastructure/storage/IStorageAdapter';
 import {
   DiagramEventProducer,
-  KafkaProducerError,
-} from '../../../src/infrastructure/kafka/DiagramEventProducer';
+  StreamProducerError,
+} from '../../../src/infrastructure/redis/DiagramEventProducer';
 import { Diagram } from '../../../src/domain/entities/Diagram';
 import { UploadDiagramInput } from '../../../src/domain/use-cases/IUploadDiagramUseCase';
 
@@ -161,7 +161,7 @@ describe('UploadDiagramUseCase', () => {
     });
   });
 
-  describe('should publish diagram.created Kafka event with correct payload after upload', () => {
+  describe('should publish diagram.created event with correct payload after upload', () => {
     it('calls publishDiagramCreated with diagram data', async () => {
       const input = makeValidInput();
 
@@ -177,7 +177,7 @@ describe('UploadDiagramUseCase', () => {
     });
   });
 
-  describe('should include eventId and timestamp in Kafka event', () => {
+  describe('should include eventId and timestamp in event', () => {
     it('publishDiagramCreated is called and returns event with eventId and timestamp', async () => {
       const input = makeValidInput();
 
@@ -190,7 +190,7 @@ describe('UploadDiagramUseCase', () => {
     });
   });
 
-  describe('should include user info in Kafka event', () => {
+  describe('should include user info in event', () => {
     it('passes user data to publishDiagramCreated', async () => {
       const input = makeValidInput();
 
@@ -229,18 +229,18 @@ describe('UploadDiagramUseCase', () => {
     });
   });
 
-  describe('should throw KafkaProducerError when Kafka publish fails', () => {
-    it('throws KafkaProducerError when producer fails', async () => {
+  describe('should throw StreamProducerError when Kafka publish fails', () => {
+    it('throws StreamProducerError when producer fails', async () => {
       eventProducer.publishDiagramCreated.mockRejectedValue(
-        new KafkaProducerError('Kafka broker unreachable')
+        new StreamProducerError('Kafka broker unreachable')
       );
 
-      await expect(useCase.execute(makeValidInput())).rejects.toThrow(KafkaProducerError);
+      await expect(useCase.execute(makeValidInput())).rejects.toThrow(StreamProducerError);
     });
 
     it('storage upload already succeeded before Kafka failure', async () => {
       eventProducer.publishDiagramCreated.mockRejectedValue(
-        new KafkaProducerError('Kafka broker unreachable')
+        new StreamProducerError('Kafka broker unreachable')
       );
 
       await expect(useCase.execute(makeValidInput())).rejects.toThrow();
@@ -252,11 +252,11 @@ describe('UploadDiagramUseCase', () => {
   describe('should rollback or handle partial failure when Kafka publish fails', () => {
     it('diagram is already saved when Kafka fails - should propagate error for external retry', async () => {
       eventProducer.publishDiagramCreated.mockRejectedValue(
-        new KafkaProducerError('Kafka unavailable')
+        new StreamProducerError('Kafka unavailable')
       );
 
       // The use case throws so the caller can handle/retry
-      await expect(useCase.execute(makeValidInput())).rejects.toThrow(KafkaProducerError);
+      await expect(useCase.execute(makeValidInput())).rejects.toThrow(StreamProducerError);
 
       // But the file was already uploaded and saved
       expect(storageAdapter.upload).toHaveBeenCalled();

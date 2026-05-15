@@ -1,5 +1,9 @@
 # Arquitetura
-O projeto é um monorepo de microserviços e agentes de IA, usando Kafka como broker para toda a comunicação assíncrona entre serviços e agentes. A comunicação frontend ↔ BFF é a única que usa HTTP/WebSocket diretamente.
+O projeto é um monorepo de microserviços e agentes de IA. A comunicação assíncrona é dividida em duas camadas:
+- **Redis Streams** — gestão de jobs do pipeline de processamento de diagramas (`diagram.created`, `diagram.processed`)
+- **Apache Kafka** — pipeline de análise e chat (`analysis.completed`, `chat.requested`, `chat.responded`)
+
+A comunicação frontend ↔ BFF é a única que usa HTTP/WebSocket diretamente.
 
 ## Diagrama de Fluxo
 
@@ -14,7 +18,7 @@ flowchart TB
 
     %% Upload e Processing
     US["upload-service"]
-    PS["processing-service\n(Kafka consumer + Textract)"]
+    PS["processing-service\n(Redis Streams consumer + Textract)"]
 
     %% Tool Server HTTP
     RS["report-service\n(tool server)"]
@@ -35,12 +39,14 @@ flowchart TB
     S3[("AWS S3")]
     TX["AWS Textract"]
 
-    %% Tópicos Kafka
-    T1(["diagram.created"])
-    T2(["diagram.processed"])
-    T3(["analysis.completed"])
-    T4(["chat.requested"])
-    T5(["chat.responded"])
+    %% Redis Streams (pipeline de processamento)
+    T1(["streams:diagram:created\n(Redis Stream)"])
+    T2(["streams:diagram:processed\n(Redis Stream)"])
+
+    %% Tópicos Kafka (análise e chat)
+    T3(["analysis.completed\n(Kafka)"])
+    T4(["chat.requested\n(Kafka)"])
+    T5(["chat.responded\n(Kafka)"])
 
     %% Fluxo de upload e análise
     FE -->|HTTP POST /diagrams/upload| BFF
@@ -87,29 +93,38 @@ flowchart TB
     RS --> DBR
 ````
 
-## Tópicos Kafka
+## Mensageria
 
-| Tópico              | Produtor                   | Consumidor                     | Descrição                                                                          |
-|---------------------|----------------------------|--------------------------------|------------------------------------------------------------------------------------|
-| `diagram.created`   | upload-service             | processing-service             | Dispara o pipeline de extração após upload                                         |
-| `diagram.processed` | processing-service         | architecture-analysis-agent    | Carrega texto OCR extraído para disparo da análise                                 |
-| `analysis.completed`| architecture-analysis-agent| bff, vector-service            | Atualiza status da análise no BFF e vetoriza o relatório no Chroma                 |
-| `chat.requested`    | bff                        | orchestrator-agent             | Envia pergunta do usuário ao orchestrator                                          |
-| `chat.responded`    | orchestrator-agent         | bff                            | Retorna resposta ao BFF para push via WebSocket                                    |
+### Redis Streams — Pipeline de Processamento de Diagramas
+
+| Stream                       | Produtor           | Consumidor                  | Descrição                                               |
+|------------------------------|--------------------|-----------------------------|---------------------------------------------------------|
+| `streams:diagram:created`    | upload-service     | processing-service          | Dispara o pipeline de extração OCR após upload          |
+| `streams:diagram:processed`  | processing-service | architecture-analysis-agent | Carrega texto OCR extraído para disparo da análise      |
+
+Cada stream usa consumer groups com XREADGROUP + XACK. Mensagens não confirmadas ficam pendentes e são re-entregues ao mesmo consumer na reinicialização.
+
+### Apache Kafka — Pipeline de Análise e Chat
+
+| Tópico               | Produtor                    | Consumidor                  | Descrição                                                      |
+|----------------------|-----------------------------|-----------------------------|----------------------------------------------------------------|
+| `analysis.completed` | architecture-analysis-agent | bff, vector-service         | Atualiza status da análise no BFF e vetoriza no Chroma         |
+| `chat.requested`     | bff                         | orchestrator-agent          | Envia pergunta do usuário ao orchestrator                      |
+| `chat.responded`     | orchestrator-agent          | bff                         | Retorna resposta ao BFF para push via WebSocket                |
 
 ## Pipeline de Upload e Análise
 
 ```
-upload-service → S3 → Kafka: diagram.created
-  ↓ Kafka: diagram.created
-processing-service → AWS Textract → MongoDB (ProcessingJob) → Kafka: diagram.processed
-  ↓ Kafka: diagram.processed
+upload-service → S3 → Redis Stream: streams:diagram:created
+  ↓ Redis Stream: streams:diagram:created
+processing-service → AWS Textract → MongoDB (ProcessingJob) → Redis Stream: streams:diagram:processed
+  ↓ Redis Stream: streams:diagram:processed
 architecture-analysis-agent → LLM (Ollama/Claude) → report-service → Kafka: analysis.completed
   ↓ Kafka: analysis.completed
 BFF → WebSocket → Frontend
 ```
 
-O `processing-service` é Kafka-native: consome `diagram.created`, chama Textract diretamente e publica `diagram.processed` com o texto extraído. O `architecture-analysis-agent` usa esse texto como contexto primário para o LLM de análise.
+O `processing-service` consome `streams:diagram:created` via Redis Streams (XREADGROUP), chama Textract e publica `streams:diagram:processed`. O `architecture-analysis-agent` consome `streams:diagram:processed` via Redis Streams e usa o texto OCR como contexto primário para o LLM de análise, publicando `analysis.completed` no Kafka.
 
 ## Comunicação BFF ↔ Frontend (Chat)
 
@@ -139,7 +154,8 @@ src/
 ├── infrastructure/
 │   ├── api/ (routes, middleware)
 │   ├── db/ (database connection)
-│   ├── kafka/ (producers, consumers)
+│   ├── kafka/ (producers e consumers Kafka — análise e chat)
+│   ├── redis/ (producers e consumers Redis Streams — processamento de diagramas)
 │   ├── persistence/ (repository implementations)
 │   └── websocket/ (BFF only)
 └── interfaces/
@@ -150,7 +166,8 @@ src/
 - React (TypeScript, Redux, MaterialUI)
 - Node.js (TypeScript)
 - MongoDB
-- Apache Kafka (KafkaJS ^2.2)
+- **Redis Streams** (ioredis ^5.3.2) — gestão de jobs de processamento de diagramas
+- **Apache Kafka** (KafkaJS ^2.2) — pipeline de análise e chat
 - WebSocket (ws ^8.18 — BFF)
 - LangGraph (orchestrator-agent)
 - Ollama / Claude API (AI inference)

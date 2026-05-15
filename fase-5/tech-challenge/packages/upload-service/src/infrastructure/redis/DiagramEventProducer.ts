@@ -1,10 +1,10 @@
-import { Kafka, Producer } from 'kafkajs';
+import { getRedisClient } from './RedisClient';
 import { v4 as uuidv4 } from 'uuid';
 
-export class KafkaProducerError extends Error {
+export class StreamProducerError extends Error {
   constructor(message: string, public readonly cause?: Error) {
     super(message);
-    this.name = 'KafkaProducerError';
+    this.name = 'StreamProducerError';
   }
 }
 
@@ -30,22 +30,9 @@ export interface DiagramCreatedEvent {
   user: DiagramCreatedEventPayload['user'];
 }
 
+const STREAM = 'streams:diagram:created';
+
 export class DiagramEventProducer {
-  private producer: Producer;
-  private readonly topic = 'diagram.created';
-
-  constructor(private readonly kafka: Kafka) {
-    this.producer = kafka.producer();
-  }
-
-  async connect(): Promise<void> {
-    await this.producer.connect();
-  }
-
-  async disconnect(): Promise<void> {
-    await this.producer.disconnect();
-  }
-
   async publishDiagramCreated(payload: DiagramCreatedEventPayload): Promise<DiagramCreatedEvent> {
     const event: DiagramCreatedEvent = {
       eventId: uuidv4(),
@@ -55,19 +42,12 @@ export class DiagramEventProducer {
     };
 
     try {
-      await this.producer.send({
-        topic: this.topic,
-        messages: [
-          {
-            key: payload.diagram.id,
-            value: JSON.stringify(event),
-          },
-        ],
-      });
+      const redis = getRedisClient();
+      await redis.xadd(STREAM, 'MAXLEN', '~', '10000', '*', 'data', JSON.stringify(event));
     } catch (error) {
-      throw new KafkaProducerError(
-        `Failed to publish diagram.created event: ${(error as Error).message}`,
-        error as Error
+      throw new StreamProducerError(
+        `Failed to publish to ${STREAM}: ${(error as Error).message}`,
+        error as Error,
       );
     }
 

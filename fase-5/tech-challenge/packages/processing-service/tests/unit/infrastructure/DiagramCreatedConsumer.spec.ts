@@ -1,6 +1,11 @@
-import { Kafka, Consumer, EachMessagePayload } from 'kafkajs';
-import { DiagramCreatedConsumer } from '../../../src/infrastructure/kafka/DiagramCreatedConsumer';
+import { DiagramCreatedConsumer } from '../../../src/infrastructure/redis/DiagramCreatedConsumer';
 import { IProcessDiagramUseCase, DiagramCreatedEvent } from '../../../src/domain/use-cases/IProcessDiagramUseCase';
+import { getRedisClient } from '../../../src/infrastructure/redis/RedisClient';
+
+jest.mock('../../../src/infrastructure/redis/RedisClient');
+
+const STREAM = 'streams:diagram:created';
+const GROUP = 'processing-service-group';
 
 const makeValidEvent = (): DiagramCreatedEvent => ({
   eventId: 'event-111',
@@ -19,180 +24,161 @@ const makeValidEvent = (): DiagramCreatedEvent => ({
   },
 });
 
-const makeMockConsumer = () => ({
-  connect: jest.fn().mockResolvedValue(undefined),
-  disconnect: jest.fn().mockResolvedValue(undefined),
-  subscribe: jest.fn().mockResolvedValue(undefined),
-  run: jest.fn().mockResolvedValue(undefined),
-  commitOffsets: jest.fn().mockResolvedValue(undefined),
+const makeMockRedis = () => ({
+  xgroup: jest.fn().mockResolvedValue('OK'),
+  xreadgroup: jest.fn().mockResolvedValue(null),
+  xack: jest.fn().mockResolvedValue(1),
 });
-
-const makeMockKafka = (mockConsumer: ReturnType<typeof makeMockConsumer>) => {
-  return {
-    consumer: jest.fn().mockReturnValue(mockConsumer),
-  } as unknown as Kafka;
-};
 
 const makeMockUseCase = (): jest.Mocked<IProcessDiagramUseCase> => ({
   execute: jest.fn().mockResolvedValue(undefined),
 });
 
 describe('DiagramCreatedConsumer', () => {
-  let mockConsumer: ReturnType<typeof makeMockConsumer>;
-  let kafka: Kafka;
+  let mockRedis: ReturnType<typeof makeMockRedis>;
   let mockUseCase: jest.Mocked<IProcessDiagramUseCase>;
   let consumer: DiagramCreatedConsumer;
 
-  // Helper to get and invoke the eachMessage handler registered via consumer.run
-  const captureAndRunEachMessage = async (payload: Partial<EachMessagePayload>) => {
-    const runConfig = mockConsumer.run.mock.calls[0][0];
-    await runConfig.eachMessage(payload);
-  };
-
-  const makeMessagePayload = (
-    value: string | null,
-    overrides: Record<string, unknown> = {}
-  ) => ({
-    topic: 'diagram.created',
-    partition: 0,
-    message: {
-      key: Buffer.from('diagram-xyz-789'),
-      value: value !== null ? Buffer.from(value) : null,
-      offset: '0',
-      attributes: 0,
-      timestamp: Date.now().toString(),
-      size: 100,
-    },
-    heartbeat: jest.fn().mockResolvedValue(undefined),
-    commitOffsetsIfNecessary: jest.fn().mockResolvedValue(undefined),
-    resolveOffset: jest.fn(),
-    isRunning: jest.fn().mockReturnValue(true),
-    isStale: jest.fn().mockReturnValue(false),
-    pause: jest.fn(),
-    ...overrides,
-  });
-
   beforeEach(() => {
-    mockConsumer = makeMockConsumer();
-    kafka = makeMockKafka(mockConsumer);
+    mockRedis = makeMockRedis();
+    (getRedisClient as jest.Mock).mockReturnValue(mockRedis);
     mockUseCase = makeMockUseCase();
-    consumer = new DiagramCreatedConsumer(kafka, mockUseCase);
+    consumer = new DiagramCreatedConsumer(mockUseCase);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await consumer.disconnect();
     jest.clearAllMocks();
   });
 
-  describe('should subscribe to "diagram.created" topic', () => {
-    it('subscribes to diagram.created when subscribe() is called', async () => {
+  describe('connect', () => {
+    it('creates consumer group with MKSTREAM on connect', async () => {
       await consumer.connect();
-      await consumer.subscribe();
 
-      expect(mockConsumer.subscribe).toHaveBeenCalledWith(
-        expect.objectContaining({ topic: 'diagram.created' })
+      expect(mockRedis.xgroup).toHaveBeenCalledWith(
+        'CREATE', STREAM, GROUP, '$', 'MKSTREAM',
       );
     });
-  });
 
-  describe('should call ProcessDiagramUseCase when message is received', () => {
-    it('invokes useCase.execute with parsed event', async () => {
-      const event = makeValidEvent();
-      await consumer.connect();
-      await consumer.subscribe();
-      await consumer.start();
+    it('ignores BUSYGROUP error when group already exists', async () => {
+      mockRedis.xgroup.mockRejectedValue(new Error('BUSYGROUP Consumer Group already exists'));
 
-      const payload = makeMessagePayload(JSON.stringify(event));
-      await captureAndRunEachMessage(payload);
+      await expect(consumer.connect()).resolves.not.toThrow();
+    });
 
-      expect(mockUseCase.execute).toHaveBeenCalledTimes(1);
-      expect(mockUseCase.execute).toHaveBeenCalledWith(
-        expect.objectContaining({ eventId: event.eventId })
-      );
+    it('re-throws non-BUSYGROUP errors', async () => {
+      mockRedis.xgroup.mockRejectedValue(new Error('WRONGTYPE unexpected error'));
+
+      await expect(consumer.connect()).rejects.toThrow('WRONGTYPE unexpected error');
     });
   });
 
-  describe('should parse JSON message payload correctly', () => {
-    it('deserializes the Kafka message value from JSON', async () => {
+  describe('message processing', () => {
+    it('calls useCase.execute and xack after successful processing', async () => {
       const event = makeValidEvent();
+      const messageId = '1704067200000-0';
+      const fields = ['data', JSON.stringify(event)];
+
+      let callCount = 0;
+      // Return pending=empty, then one new message, then block forever
+      mockRedis.xreadgroup.mockImplementation(async (...args: unknown[]) => {
+        const lastArg = args[args.length - 1] as string;
+        if (lastArg === '0') return null; // no pending messages
+        if (callCount++ === 0) {
+          return [[STREAM, [[messageId, fields]]]];
+        }
+        await new Promise((r) => setTimeout(r, 10_000)); // simulate BLOCK
+        return null;
+      });
+
+      const processingDone = new Promise<void>((resolve) => {
+        mockRedis.xack.mockImplementation(async () => {
+          resolve();
+          return 1;
+        });
+      });
+
       await consumer.connect();
-      await consumer.subscribe();
       await consumer.start();
 
-      await captureAndRunEachMessage(makeMessagePayload(JSON.stringify(event)));
+      await processingDone;
+      await consumer.disconnect();
 
-      const executedEvent: DiagramCreatedEvent = mockUseCase.execute.mock.calls[0][0];
-      expect(executedEvent.diagram.id).toBe(event.diagram.id);
-      expect(executedEvent.diagram.fileName).toBe(event.diagram.fileName);
-      expect(executedEvent.user.email).toBe(event.user.email);
+      expect(mockUseCase.execute).toHaveBeenCalledWith(event);
+      expect(mockRedis.xack).toHaveBeenCalledWith(STREAM, GROUP, messageId);
     });
-  });
 
-  describe('should handle deserialization error gracefully', () => {
-    it('does not throw when message value is invalid JSON', async () => {
+    it('does not xack when useCase.execute throws', async () => {
+      const event = makeValidEvent();
+      const messageId = '1704067200000-1';
+      const fields = ['data', JSON.stringify(event)];
+
+      let callCount = 0;
+      const processAttempted = new Promise<void>((resolve) => {
+        mockUseCase.execute.mockImplementation(async () => {
+          resolve();
+          throw new Error('Processing failed');
+        });
+      });
+
+      mockRedis.xreadgroup.mockImplementation(async (...args: unknown[]) => {
+        const lastArg = args[args.length - 1] as string;
+        if (lastArg === '0') return null;
+        if (callCount++ === 0) {
+          return [[STREAM, [[messageId, fields]]]];
+        }
+        await new Promise((r) => setTimeout(r, 10_000));
+        return null;
+      });
+
       await consumer.connect();
-      await consumer.subscribe();
       await consumer.start();
 
-      await expect(
-        captureAndRunEachMessage(makeMessagePayload('not-valid-json{'))
-      ).resolves.not.toThrow();
+      await processAttempted;
+      // Give a tick for any potential xack call
+      await new Promise((r) => setImmediate(r));
+      await consumer.disconnect();
+
+      expect(mockRedis.xack).not.toHaveBeenCalled();
+    });
+
+    it('acks and skips message with invalid JSON', async () => {
+      const messageId = '1704067200000-2';
+      const fields = ['data', 'not-valid-json{'];
+
+      let callCount = 0;
+      const ackCalled = new Promise<void>((resolve) => {
+        mockRedis.xack.mockImplementation(async () => {
+          resolve();
+          return 1;
+        });
+      });
+
+      mockRedis.xreadgroup.mockImplementation(async (...args: unknown[]) => {
+        const lastArg = args[args.length - 1] as string;
+        if (lastArg === '0') return null;
+        if (callCount++ === 0) {
+          return [[STREAM, [[messageId, fields]]]];
+        }
+        await new Promise((r) => setTimeout(r, 10_000));
+        return null;
+      });
+
+      await consumer.connect();
+      await consumer.start();
+
+      await ackCalled;
+      await consumer.disconnect();
 
       expect(mockUseCase.execute).not.toHaveBeenCalled();
-    });
-
-    it('does not throw when message value is null', async () => {
-      await consumer.connect();
-      await consumer.subscribe();
-      await consumer.start();
-
-      await expect(
-        captureAndRunEachMessage(makeMessagePayload(null))
-      ).resolves.not.toThrow();
-
-      expect(mockUseCase.execute).not.toHaveBeenCalled();
+      expect(mockRedis.xack).toHaveBeenCalledWith(STREAM, GROUP, messageId);
     });
   });
 
-  describe('should commit offset after successful processing', () => {
-    it('calls commitOffsetsIfNecessary after successful useCase.execute', async () => {
-      const event = makeValidEvent();
+  describe('subscribe', () => {
+    it('is a no-op that resolves without error', async () => {
       await consumer.connect();
-      await consumer.subscribe();
-      await consumer.start();
-
-      const payload = makeMessagePayload(JSON.stringify(event));
-      await captureAndRunEachMessage(payload);
-
-      expect(payload.commitOffsetsIfNecessary).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('should not commit offset when processing fails', () => {
-    it('does not call commitOffsetsIfNecessary when useCase.execute throws', async () => {
-      mockUseCase.execute.mockRejectedValue(new Error('Processing failed unexpectedly'));
-
-      await consumer.connect();
-      await consumer.subscribe();
-      await consumer.start();
-
-      const payload = makeMessagePayload(JSON.stringify(makeValidEvent()));
-      await captureAndRunEachMessage(payload);
-
-      expect(payload.commitOffsetsIfNecessary).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('should log error when message processing fails', () => {
-    it('does not throw when useCase.execute rejects', async () => {
-      mockUseCase.execute.mockRejectedValue(new Error('Unexpected processing error'));
-
-      await consumer.connect();
-      await consumer.subscribe();
-      await consumer.start();
-
-      await expect(
-        captureAndRunEachMessage(makeMessagePayload(JSON.stringify(makeValidEvent())))
-      ).resolves.not.toThrow();
+      await expect(consumer.subscribe()).resolves.not.toThrow();
     });
   });
 });

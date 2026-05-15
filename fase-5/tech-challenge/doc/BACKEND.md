@@ -9,19 +9,19 @@ Cada serviço possui banco de dados próprio e testes automatizados.
 
 ### processing-service
 
-Serviço **Kafka-native** responsável por acionar o OCR via AWS Textract e publicar o resultado na pipeline de análise.
+Serviço **Redis Streams-native** responsável por acionar o OCR via AWS Textract e publicar o resultado na pipeline de análise.
 
-- **Porta:** sem porta exposta (serviço interno, acesso apenas via Kafka)
-- **Kafka consumer:** `diagram.created` (group: `processing-service-group`)
-- **Kafka producer:** `diagram.processed`
+- **Porta:** sem porta exposta (serviço interno)
+- **Redis Stream consumer:** `streams:diagram:created` (group: `processing-service-group`)
+- **Redis Stream producer:** `streams:diagram:processed`
 - **Banco:** MongoDB (`arch-analyzer-processing`)
 - **AWS:** Textract via `@aws-sdk/client-textract`
 
 **Fluxo:**
-1. Consome `diagram.created` do Kafka
+1. Consome `streams:diagram:created` via XREADGROUP (Redis Streams)
 2. Chama AWS Textract para extração de texto do arquivo em S3
 3. Persiste `ProcessingJob` no MongoDB
-4. Publica `diagram.processed` com o texto OCR extraído
+4. Publica `streams:diagram:processed` com o texto OCR extraído via XADD
 
 **Endpoints HTTP (debug/utilitário):**
 - `POST /tools/ocr` — `{ s3Url }` → executa Textract → `{ extractedText }`
@@ -47,6 +47,12 @@ Tool server HTTP para persistência de relatórios gerados pelo `architecture-an
 - **Banco:** MongoDB (`arch-analyzer-reports`)
 - **Endpoints:**
   - `POST /tools/reports` — recebe `AnalysisCompletedEvent` → cria/atualiza Report → `{ reportId }`
+
+---
+
+### architecture-analysis-agent
+
+Consome `streams:diagram:processed` via **Redis Streams** (XREADGROUP, group: `analysis-agent-group`), executa análise LLM e publica `analysis.completed` via **Kafka**.
 
 ---
 
@@ -81,4 +87,4 @@ API Gateway e ponto único de entrada para o frontend. Responsabilidades:
 
 ### upload-service
 
-Recebe o arquivo do BFF, armazena (local ou S3) e publica o evento `diagram.created` no Kafka.
+Recebe o arquivo do BFF, armazena (local ou S3) e publica o evento no stream `streams:diagram:created` via **Redis Streams** (XADD).

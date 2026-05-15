@@ -10,8 +10,8 @@ import {
 import { IStorageAdapter } from '../../infrastructure/storage/IStorageAdapter';
 import {
   DiagramEventProducer,
-  KafkaProducerError,
-} from '../../infrastructure/kafka/DiagramEventProducer';
+  StreamProducerError,
+} from '../../infrastructure/redis/DiagramEventProducer';
 
 const userSchema = z.object({
   id: z.string().min(1, 'user.id is required'),
@@ -86,7 +86,7 @@ export class UploadDiagramUseCase implements IUploadDiagramUseCase {
         },
       });
     } catch (error) {
-      if (error instanceof KafkaProducerError) {
+      if (error instanceof StreamProducerError) {
         throw error;
       }
       throw error;

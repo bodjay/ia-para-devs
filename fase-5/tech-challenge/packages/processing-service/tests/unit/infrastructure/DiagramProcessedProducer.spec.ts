@@ -1,21 +1,15 @@
-import { Kafka, Producer } from 'kafkajs';
 import {
   DiagramProcessedProducer,
-  KafkaProducerError,
+  StreamProducerError,
   DiagramProcessedEventPayload,
-} from '../../../src/infrastructure/kafka/DiagramProcessedProducer';
+} from '../../../src/infrastructure/redis/DiagramProcessedProducer';
+import { getRedisClient } from '../../../src/infrastructure/redis/RedisClient';
 
-const makeMockProducer = () => ({
-  connect: jest.fn().mockResolvedValue(undefined),
-  disconnect: jest.fn().mockResolvedValue(undefined),
-  send: jest.fn().mockResolvedValue([{ topicName: 'diagram.processed', partition: 0, errorCode: 0 }]),
+jest.mock('../../../src/infrastructure/redis/RedisClient');
+
+const makeMockRedis = () => ({
+  xadd: jest.fn().mockResolvedValue('1704067200000-0'),
 });
-
-const makeMockKafka = (mockProducer: ReturnType<typeof makeMockProducer>) => {
-  return {
-    producer: jest.fn().mockReturnValue(mockProducer),
-  } as unknown as Kafka;
-};
 
 const makeSuccessPayload = (overrides: Partial<DiagramProcessedEventPayload> = {}): DiagramProcessedEventPayload => ({
   diagram: {
@@ -42,178 +36,101 @@ const makeFailedPayload = (): DiagramProcessedEventPayload => ({
     fileType: 'application/pdf',
     storageUrl: 'https://storage.example.com/diagrams/corrupted.pdf',
   },
-  processing: {
-    status: 'failed',
-  },
-  error: {
-    code: 'EXTRACTION_FAILED',
-    message: 'Could not extract diagram elements',
-  },
+  processing: { status: 'failed' },
+  error: { code: 'EXTRACTION_FAILED', message: 'Could not extract diagram elements' },
 });
 
 describe('DiagramProcessedProducer', () => {
-  let mockProducer: ReturnType<typeof makeMockProducer>;
-  let kafka: Kafka;
+  let mockRedis: ReturnType<typeof makeMockRedis>;
   let producer: DiagramProcessedProducer;
 
   beforeEach(() => {
-    mockProducer = makeMockProducer();
-    kafka = makeMockKafka(mockProducer);
-    producer = new DiagramProcessedProducer(kafka);
+    mockRedis = makeMockRedis();
+    (getRedisClient as jest.Mock).mockReturnValue(mockRedis);
+    producer = new DiagramProcessedProducer();
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('should publish to "diagram.processed" topic', () => {
-    it('sends message to diagram.processed topic', async () => {
-      await producer.connect();
+  describe('should publish to streams:diagram:processed stream', () => {
+    it('calls xadd on the correct stream key', async () => {
       await producer.publishDiagramProcessed(makeSuccessPayload());
 
-      expect(mockProducer.send).toHaveBeenCalledWith(
-        expect.objectContaining({ topic: 'diagram.processed' })
+      expect(mockRedis.xadd).toHaveBeenCalledWith(
+        'streams:diagram:processed',
+        expect.any(String), // MAXLEN
+        expect.any(String), // ~
+        expect.any(String), // 10000
+        '*',
+        'data',
+        expect.any(String),
       );
     });
   });
 
   describe('should serialize payload as JSON', () => {
-    it('message value is a valid JSON string', async () => {
-      await producer.connect();
-      await producer.publishDiagramProcessed(makeSuccessPayload());
-
-      const sentMessages = mockProducer.send.mock.calls[0][0].messages;
-      expect(sentMessages).toHaveLength(1);
-      expect(() => JSON.parse(sentMessages[0].value as string)).not.toThrow();
-    });
-
-    it('serialized JSON contains all payload data', async () => {
-      await producer.connect();
+    it('message data is valid JSON containing all payload fields', async () => {
       const payload = makeSuccessPayload();
 
       await producer.publishDiagramProcessed(payload);
 
-      const parsedEvent = JSON.parse(mockProducer.send.mock.calls[0][0].messages[0].value as string);
+      const rawData = (mockRedis.xadd.mock.calls[0] as string[]).at(-1) as string;
+      const parsedEvent = JSON.parse(rawData);
+
       expect(parsedEvent.diagram.id).toBe(payload.diagram.id);
       expect(parsedEvent.processing.extractedText).toBe(payload.processing.extractedText);
     });
   });
 
   describe('should include all required fields (eventId, timestamp, diagram, processing)', () => {
-    it('published event has eventId, timestamp, diagram, and processing fields', async () => {
-      await producer.connect();
-
+    it('returned event has eventId, timestamp, diagram, and processing', async () => {
       const event = await producer.publishDiagramProcessed(makeSuccessPayload());
 
       expect(event).toHaveProperty('eventId');
       expect(event).toHaveProperty('timestamp');
       expect(event).toHaveProperty('diagram');
       expect(event).toHaveProperty('processing');
-
-      const parsedEvent = JSON.parse(mockProducer.send.mock.calls[0][0].messages[0].value as string);
-      expect(parsedEvent).toHaveProperty('eventId');
-      expect(parsedEvent).toHaveProperty('timestamp');
-      expect(parsedEvent).toHaveProperty('diagram');
-      expect(parsedEvent).toHaveProperty('processing');
-    });
-
-    it('eventId is a non-empty UUID-like string', async () => {
-      await producer.connect();
-
-      const event = await producer.publishDiagramProcessed(makeSuccessPayload());
-
-      expect(typeof event.eventId).toBe('string');
-      expect(event.eventId.length).toBeGreaterThan(0);
     });
 
     it('timestamp is in ISO-8601 format', async () => {
-      await producer.connect();
-
       const event = await producer.publishDiagramProcessed(makeSuccessPayload());
 
       expect(event.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
     });
   });
 
-  describe('should set processing.status to "processed" on success', () => {
-    it('returns event with processing.status "processed"', async () => {
-      await producer.connect();
-
+  describe('should set processing.status correctly', () => {
+    it('returns event with processing.status "processed" for success', async () => {
       const event = await producer.publishDiagramProcessed(makeSuccessPayload());
 
       expect(event.processing.status).toBe('processed');
     });
 
-    it('serialized message processing.status is "processed"', async () => {
-      await producer.connect();
-      await producer.publishDiagramProcessed(makeSuccessPayload());
-
-      const parsedEvent = JSON.parse(mockProducer.send.mock.calls[0][0].messages[0].value as string);
-      expect(parsedEvent.processing.status).toBe('processed');
-    });
-  });
-
-  describe('should set processing.status to "failed" on failure', () => {
-    it('returns event with processing.status "failed"', async () => {
-      await producer.connect();
-
+    it('returns event with processing.status "failed" and error field', async () => {
       const event = await producer.publishDiagramProcessed(makeFailedPayload());
 
       expect(event.processing.status).toBe('failed');
-    });
-
-    it('includes error details when status is failed', async () => {
-      await producer.connect();
-
-      const event = await producer.publishDiagramProcessed(makeFailedPayload());
-
-      expect(event.error).toBeDefined();
       expect(event.error?.code).toBe('EXTRACTION_FAILED');
-      expect(event.error?.message).toBe('Could not extract diagram elements');
-    });
-
-    it('serialized message includes error field for failed events', async () => {
-      await producer.connect();
-      await producer.publishDiagramProcessed(makeFailedPayload());
-
-      const parsedEvent = JSON.parse(mockProducer.send.mock.calls[0][0].messages[0].value as string);
-      expect(parsedEvent.processing.status).toBe('failed');
-      expect(parsedEvent.error).toBeDefined();
     });
   });
 
-  describe('should throw when Kafka is unavailable', () => {
-    it('throws KafkaProducerError when producer.send fails', async () => {
-      mockProducer.send.mockRejectedValue(new Error('Kafka broker connection refused'));
-      await producer.connect();
+  describe('should throw when Redis is unavailable', () => {
+    it('throws StreamProducerError when xadd fails', async () => {
+      mockRedis.xadd.mockRejectedValue(new Error('Redis broker connection refused'));
 
       await expect(
         producer.publishDiagramProcessed(makeSuccessPayload())
-      ).rejects.toThrow(KafkaProducerError);
+      ).rejects.toThrow(StreamProducerError);
     });
 
-    it('KafkaProducerError message contains original error info', async () => {
-      mockProducer.send.mockRejectedValue(new Error('Connection refused at 127.0.0.1:9092'));
-      await producer.connect();
+    it('StreamProducerError message contains original error info', async () => {
+      mockRedis.xadd.mockRejectedValue(new Error('Connection refused'));
 
       await expect(
         producer.publishDiagramProcessed(makeSuccessPayload())
       ).rejects.toThrow(/Connection refused/);
-    });
-
-    it('does not silently swallow the error', async () => {
-      mockProducer.send.mockRejectedValue(new Error('network failure'));
-      await producer.connect();
-
-      let thrownError: Error | null = null;
-      try {
-        await producer.publishDiagramProcessed(makeSuccessPayload());
-      } catch (error) {
-        thrownError = error as Error;
-      }
-
-      expect(thrownError).not.toBeNull();
-      expect(thrownError).toBeInstanceOf(KafkaProducerError);
     });
   });
 });

@@ -4,7 +4,7 @@ import { createApp } from '../../../src/app';
 import { IUploadDiagramUseCase, UploadDiagramInput, UploadDiagramOutput } from '../../../src/domain/use-cases/IUploadDiagramUseCase';
 import { ValidationError } from '../../../src/application/use-cases/UploadDiagramUseCase';
 import { StorageError } from '../../../src/infrastructure/storage/IStorageAdapter';
-import { KafkaProducerError } from '../../../src/infrastructure/kafka/DiagramEventProducer';
+import { StreamProducerError } from '../../../src/infrastructure/redis/DiagramEventProducer';
 
 const makeMockUseCase = (overrides: Partial<jest.Mocked<IUploadDiagramUseCase>> = {}): jest.Mocked<IUploadDiagramUseCase> => {
   const defaultOutput: UploadDiagramOutput = {

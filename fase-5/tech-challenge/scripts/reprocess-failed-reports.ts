@@ -3,15 +3,15 @@
  *
  * Strategy:
  *   - For each failed report, look up its ProcessingJob (processing-service DB).
- *   - If the job succeeded → publish `diagram.processed` (re-run only the analysis step).
+ *   - If the job succeeded → publish to stream `streams:diagram:processed` (re-run only the analysis step).
  *   - If the job failed / not found → look up the Diagram (upload-service DB) and publish
- *     `diagram.created` (restart the full pipeline).
+ *     to stream `streams:diagram:created` (restart the full pipeline).
  *
  * Usage:
  *   ts-node scripts/reprocess-failed-reports.ts [options]
  *
  * Options:
- *   --dry-run                  Print what would be published without sending any Kafka messages.
+ *   --dry-run                  Print what would be published without sending any Redis messages.
  *   --diagram-id <id>          Reprocess only the report for this diagram.
  *   --error-code <code>        Filter reports by error.code (e.g. ANALYSIS_ERROR, INTERNAL_ERROR).
  *   --limit <n>                Maximum number of reports to reprocess (default: 100).
@@ -24,12 +24,12 @@
  *                              Default: mongodb://localhost:27017/arch-analyzer-processing
  *   UPLOADS_MONGO_URI          MongoDB URI for the upload-service database.
  *                              Default: mongodb://localhost:27017/arch-analyzer-uploads
- *   KAFKA_BROKERS              Comma-separated list of Kafka brokers.
- *                              Default: localhost:9092
+ *   REDIS_URL                  Redis connection URL.
+ *                              Default: redis://localhost:6379
  */
 
 import mongoose, { Connection, Schema, Document } from 'mongoose';
-import { Kafka, Producer } from 'kafkajs';
+import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
 
 // ---------------------------------------------------------------------------
@@ -150,10 +150,10 @@ async function main(): Promise<void> {
     process.env.PROCESSING_MONGO_URI ?? 'mongodb://localhost:27017/arch-analyzer-processing';
   const UPLOADS_MONGO_URI =
     process.env.UPLOADS_MONGO_URI ?? 'mongodb://localhost:27017/arch-analyzer-uploads';
-  const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? 'localhost:9092').split(',');
+  const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 
   if (dryRun) {
-    log('DRY RUN — no Kafka messages will be published.');
+    log('DRY RUN — no Redis Stream messages will be published.');
   }
 
   // ── Mongoose connections ─────────────────────────────────────────────────
@@ -213,16 +213,15 @@ async function main(): Promise<void> {
     return;
   }
 
+
   log(`Found ${failedReports.length} failed report(s) to reprocess.`);
 
-  // ── Kafka producer ───────────────────────────────────────────────────────
-  const kafka = new Kafka({ clientId: 'reprocess-script', brokers: KAFKA_BROKERS });
-  let producer: Producer | null = null;
+  // ── Redis Streams client ─────────────────────────────────────────────────
+  let redis: Redis | null = null;
 
   if (!dryRun) {
-    producer = kafka.producer();
-    await producer.connect();
-    log('Kafka producer connected.');
+    redis = new Redis(REDIS_URL);
+    log('Redis client connected.');
   }
 
   // ── Process each report ──────────────────────────────────────────────────
@@ -264,15 +263,12 @@ async function main(): Promise<void> {
         event.diagram.storageUrl = diagram.storageUrl;
       }
 
-      log(`  → Publishing diagram.processed (re-run analysis only)`);
+      log(`  → Publishing to streams:diagram:processed (re-run analysis only)`);
       if (dryRun) {
-        log(`  [DRY RUN] Would publish to topic diagram.processed: ${JSON.stringify(event, null, 2)}`);
+        log(`  [DRY RUN] Would publish to streams:diagram:processed: ${JSON.stringify(event, null, 2)}`);
       } else {
-        await producer!.send({
-          topic: 'diagram.processed',
-          messages: [{ key: dId, value: JSON.stringify(event) }],
-        });
-        log(`  ✓ Published to diagram.processed`);
+        await redis!.xadd('streams:diagram:processed', 'MAXLEN', '~', '10000', '*', 'data', JSON.stringify(event));
+        log(`  ✓ Published to streams:diagram:processed`);
       }
       published++;
     } else {
@@ -302,15 +298,12 @@ async function main(): Promise<void> {
       };
 
       const reason = fromBeginning ? '--from-beginning flag' : 'processing job failed or not found';
-      log(`  → Publishing diagram.created (full reprocess — ${reason})`);
+      log(`  → Publishing to streams:diagram:created (full reprocess — ${reason})`);
       if (dryRun) {
-        log(`  [DRY RUN] Would publish to topic diagram.created: ${JSON.stringify(event, null, 2)}`);
+        log(`  [DRY RUN] Would publish to streams:diagram:created: ${JSON.stringify(event, null, 2)}`);
       } else {
-        await producer!.send({
-          topic: 'diagram.created',
-          messages: [{ key: dId, value: JSON.stringify(event) }],
-        });
-        log(`  ✓ Published to diagram.created`);
+        await redis!.xadd('streams:diagram:created', 'MAXLEN', '~', '10000', '*', 'data', JSON.stringify(event));
+        log(`  ✓ Published to streams:diagram:created`);
       }
       published++;
     }
@@ -319,13 +312,13 @@ async function main(): Promise<void> {
   // ── Summary ──────────────────────────────────────────────────────────────
   log(`\nDone. Published: ${published} | Skipped: ${skipped} | Total: ${failedReports.length}`);
 
-  await cleanup([reportsConn, processingConn, uploadsConn], producer);
+  await cleanup([reportsConn, processingConn, uploadsConn], redis);
 }
 
-async function cleanup(connections: Connection[], producer: Producer | null): Promise<void> {
-  if (producer) {
-    await producer.disconnect();
-    log('Kafka producer disconnected.');
+async function cleanup(connections: Connection[], redis: Redis | null): Promise<void> {
+  if (redis) {
+    await redis.quit();
+    log('Redis client disconnected.');
   }
   for (const conn of connections) {
     await conn.close();

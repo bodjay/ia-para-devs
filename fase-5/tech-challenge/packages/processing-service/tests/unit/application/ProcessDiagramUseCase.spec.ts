@@ -1,7 +1,7 @@
 import { ProcessDiagramUseCase } from '../../../src/application/use-cases/ProcessDiagramUseCase';
 import { IProcessingJobRepository } from '../../../src/domain/repositories/IProcessingJobRepository';
 import { ITextractAdapter } from '../../../src/infrastructure/textract/TextractAdapter';
-import { DiagramProcessedProducer } from '../../../src/infrastructure/kafka/DiagramProcessedProducer';
+import { DiagramProcessedProducer } from '../../../src/infrastructure/redis/DiagramProcessedProducer';
 import { DiagramCreatedEvent } from '../../../src/domain/use-cases/IProcessDiagramUseCase';
 import { ProcessingJob } from '../../../src/domain/entities/ProcessingJob';
 

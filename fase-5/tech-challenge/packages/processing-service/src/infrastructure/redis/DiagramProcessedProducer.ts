@@ -1,11 +1,11 @@
-import { Kafka, Producer } from 'kafkajs';
+import { getRedisClient } from './RedisClient';
 import { v4 as uuidv4 } from 'uuid';
 import { DiagramConnection, DiagramElement } from '../../domain/entities/ProcessingJob';
 
-export class KafkaProducerError extends Error {
+export class StreamProducerError extends Error {
   constructor(message: string, public readonly cause?: Error) {
     super(message);
-    this.name = 'KafkaProducerError';
+    this.name = 'StreamProducerError';
   }
 }
 
@@ -36,25 +36,10 @@ export interface DiagramProcessedEvent {
   error?: DiagramProcessedEventPayload['error'];
 }
 
+const STREAM = 'streams:diagram:processed';
+
 export class DiagramProcessedProducer {
-  private producer: Producer;
-  private readonly topic = 'diagram.processed';
-
-  constructor(private readonly kafka: Kafka) {
-    this.producer = kafka.producer();
-  }
-
-  async connect(): Promise<void> {
-    await this.producer.connect();
-  }
-
-  async disconnect(): Promise<void> {
-    await this.producer.disconnect();
-  }
-
-  async publishDiagramProcessed(
-    payload: DiagramProcessedEventPayload
-  ): Promise<DiagramProcessedEvent> {
+  async publishDiagramProcessed(payload: DiagramProcessedEventPayload): Promise<DiagramProcessedEvent> {
     const event: DiagramProcessedEvent = {
       eventId: uuidv4(),
       timestamp: new Date().toISOString(),
@@ -64,19 +49,12 @@ export class DiagramProcessedProducer {
     };
 
     try {
-      await this.producer.send({
-        topic: this.topic,
-        messages: [
-          {
-            key: payload.diagram.id,
-            value: JSON.stringify(event),
-          },
-        ],
-      });
+      const redis = getRedisClient();
+      await redis.xadd(STREAM, 'MAXLEN', '~', '10000', '*', 'data', JSON.stringify(event));
     } catch (error) {
-      throw new KafkaProducerError(
-        `Failed to publish diagram.processed event: ${(error as Error).message}`,
-        error as Error
+      throw new StreamProducerError(
+        `Failed to publish to ${STREAM}: ${(error as Error).message}`,
+        error as Error,
       );
     }
 

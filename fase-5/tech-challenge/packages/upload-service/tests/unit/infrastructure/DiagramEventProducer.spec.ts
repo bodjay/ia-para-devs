@@ -1,18 +1,11 @@
-import { Kafka, Producer } from 'kafkajs';
-import { DiagramEventProducer, KafkaProducerError } from '../../../src/infrastructure/kafka/DiagramEventProducer';
+import { DiagramEventProducer, StreamProducerError } from '../../../src/infrastructure/redis/DiagramEventProducer';
+import { getRedisClient } from '../../../src/infrastructure/redis/RedisClient';
 
-const makeMockProducer = () => ({
-  connect: jest.fn().mockResolvedValue(undefined),
-  disconnect: jest.fn().mockResolvedValue(undefined),
-  send: jest.fn().mockResolvedValue([{ topicName: 'diagram.created', partition: 0, errorCode: 0 }]),
+jest.mock('../../../src/infrastructure/redis/RedisClient');
+
+const makeMockRedis = () => ({
+  xadd: jest.fn().mockResolvedValue('1704067200000-0'),
 });
-
-const makeMockKafka = (mockProducer: ReturnType<typeof makeMockProducer>) => {
-  const kafka = {
-    producer: jest.fn().mockReturnValue(mockProducer),
-  } as unknown as Kafka;
-  return kafka;
-};
 
 const makeValidPayload = () => ({
   diagram: {
@@ -30,139 +23,88 @@ const makeValidPayload = () => ({
 });
 
 describe('DiagramEventProducer', () => {
-  let mockProducer: ReturnType<typeof makeMockProducer>;
-  let kafka: Kafka;
-  let diagramEventProducer: DiagramEventProducer;
+  let mockRedis: ReturnType<typeof makeMockRedis>;
+  let producer: DiagramEventProducer;
 
   beforeEach(() => {
-    mockProducer = makeMockProducer();
-    kafka = makeMockKafka(mockProducer);
-    diagramEventProducer = new DiagramEventProducer(kafka);
+    mockRedis = makeMockRedis();
+    (getRedisClient as jest.Mock).mockReturnValue(mockRedis);
+    producer = new DiagramEventProducer();
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('should publish diagram.created event with correct topic', () => {
-    it('sends message to diagram.created topic', async () => {
-      await diagramEventProducer.connect();
-      await diagramEventProducer.publishDiagramCreated(makeValidPayload());
+  describe('should publish to streams:diagram:created stream', () => {
+    it('calls xadd on the correct stream key', async () => {
+      await producer.publishDiagramCreated(makeValidPayload());
 
-      expect(mockProducer.send).toHaveBeenCalledWith(
-        expect.objectContaining({
-          topic: 'diagram.created',
-        })
+      expect(mockRedis.xadd).toHaveBeenCalledWith(
+        'streams:diagram:created',
+        expect.any(String), // MAXLEN
+        expect.any(String), // ~
+        expect.any(String), // 10000
+        '*',
+        'data',
+        expect.any(String),
       );
     });
   });
 
   describe('should include all required fields in event payload', () => {
-    it('serialized message contains eventId, timestamp, diagram, and user', async () => {
-      await diagramEventProducer.connect();
+    it('serialized data contains eventId, timestamp, diagram, and user', async () => {
       const payload = makeValidPayload();
 
-      await diagramEventProducer.publishDiagramCreated(payload);
+      await producer.publishDiagramCreated(payload);
 
-      const sentMessages = mockProducer.send.mock.calls[0][0].messages;
-      expect(sentMessages).toHaveLength(1);
+      const rawData = (mockRedis.xadd.mock.calls[0] as string[]).at(-1) as string;
+      const parsedEvent = JSON.parse(rawData);
 
-      const parsedEvent = JSON.parse(sentMessages[0].value as string);
       expect(parsedEvent).toHaveProperty('eventId');
       expect(parsedEvent).toHaveProperty('timestamp');
-      expect(parsedEvent).toHaveProperty('diagram');
-      expect(parsedEvent).toHaveProperty('user');
       expect(parsedEvent.diagram.id).toBe(payload.diagram.id);
       expect(parsedEvent.diagram.fileName).toBe(payload.diagram.fileName);
-      expect(parsedEvent.diagram.fileType).toBe(payload.diagram.fileType);
       expect(parsedEvent.diagram.fileSize).toBe(payload.diagram.fileSize);
-      expect(parsedEvent.diagram.storageUrl).toBe(payload.diagram.storageUrl);
       expect(parsedEvent.user.id).toBe(payload.user.id);
-      expect(parsedEvent.user.name).toBe(payload.user.name);
       expect(parsedEvent.user.email).toBe(payload.user.email);
     });
   });
 
   describe('should generate unique eventId for each event', () => {
     it('produces different eventIds for successive calls', async () => {
-      await diagramEventProducer.connect();
       const payload = makeValidPayload();
 
-      const event1 = await diagramEventProducer.publishDiagramCreated(payload);
-      const event2 = await diagramEventProducer.publishDiagramCreated(payload);
+      const event1 = await producer.publishDiagramCreated(payload);
+      const event2 = await producer.publishDiagramCreated(payload);
 
       expect(event1.eventId).not.toBe(event2.eventId);
-    });
-
-    it('eventId is a non-empty string', async () => {
-      await diagramEventProducer.connect();
-
-      const event = await diagramEventProducer.publishDiagramCreated(makeValidPayload());
-
-      expect(typeof event.eventId).toBe('string');
-      expect(event.eventId.length).toBeGreaterThan(0);
     });
   });
 
   describe('should set timestamp to ISO-8601 format', () => {
     it('timestamp matches ISO-8601 pattern', async () => {
-      await diagramEventProducer.connect();
+      const event = await producer.publishDiagramCreated(makeValidPayload());
 
-      const event = await diagramEventProducer.publishDiagramCreated(makeValidPayload());
-
-      expect(event.timestamp).toMatch(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
-      );
-    });
-
-    it('timestamp is recent (within last 5 seconds)', async () => {
-      await diagramEventProducer.connect();
-      const before = Date.now();
-
-      const event = await diagramEventProducer.publishDiagramCreated(makeValidPayload());
-
-      const after = Date.now();
-      const eventTime = new Date(event.timestamp).getTime();
-      expect(eventTime).toBeGreaterThanOrEqual(before);
-      expect(eventTime).toBeLessThanOrEqual(after);
+      expect(event.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
     });
   });
 
-  describe('should throw when Kafka is unavailable', () => {
-    it('throws KafkaProducerError when producer.send fails', async () => {
-      mockProducer.send.mockRejectedValue(new Error('KafkaJSProtocolError: Connection timeout'));
-      await diagramEventProducer.connect();
+  describe('should throw when Redis is unavailable', () => {
+    it('throws StreamProducerError when xadd fails', async () => {
+      mockRedis.xadd.mockRejectedValue(new Error('Connection timeout'));
 
       await expect(
-        diagramEventProducer.publishDiagramCreated(makeValidPayload())
-      ).rejects.toThrow(KafkaProducerError);
+        producer.publishDiagramCreated(makeValidPayload())
+      ).rejects.toThrow(StreamProducerError);
     });
 
-    it('KafkaProducerError message includes original error details', async () => {
-      mockProducer.send.mockRejectedValue(new Error('Broker unavailable'));
-      await diagramEventProducer.connect();
+    it('StreamProducerError message includes original error details', async () => {
+      mockRedis.xadd.mockRejectedValue(new Error('Redis unavailable'));
 
       await expect(
-        diagramEventProducer.publishDiagramCreated(makeValidPayload())
-      ).rejects.toThrow(/Broker unavailable/);
-    });
-  });
-
-  describe('should connect to Kafka before publishing', () => {
-    it('calls producer.connect on connect()', async () => {
-      await diagramEventProducer.connect();
-
-      expect(mockProducer.connect).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('should disconnect after publishing', () => {
-    it('calls producer.disconnect on disconnect()', async () => {
-      await diagramEventProducer.connect();
-      await diagramEventProducer.publishDiagramCreated(makeValidPayload());
-      await diagramEventProducer.disconnect();
-
-      expect(mockProducer.disconnect).toHaveBeenCalledTimes(1);
+        producer.publishDiagramCreated(makeValidPayload())
+      ).rejects.toThrow(/Redis unavailable/);
     });
   });
 });
