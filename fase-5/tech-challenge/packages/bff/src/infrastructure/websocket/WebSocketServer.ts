@@ -80,7 +80,6 @@ export class WebSocketServer {
       timestamp: new Date(),
     });
     await this.messageRepository.save(userMessage);
-
     this.send(ws, {
       type: 'user_message',
       messageId: userMessage.messageId,
@@ -89,38 +88,40 @@ export class WebSocketServer {
       timestamp: userMessage.timestamp.toISOString(),
     });
 
-    const immediateResponse = await this.resolveImmediateResponse(session, msg.question);
-
-    if (immediateResponse) {
-      const assistantMessage = new Message({
-        messageId: randomUUID(),
-        sessionId,
-        content: immediateResponse,
-        role: 'assistant',
-        timestamp: new Date(),
-      });
-      await this.messageRepository.save(assistantMessage);
-      session.touch();
-      await this.sessionRepository.update(session);
-      this.send(ws, {
-        type: 'assistant_message',
-        messageId: assistantMessage.messageId,
-        content: assistantMessage.content,
-        role: 'assistant',
-        timestamp: assistantMessage.timestamp.toISOString(),
-        route: 'no_analysis',
-      });
+    // No diagram uploaded yet
+    if (!session.analysisId) {
+      await this.saveAndSendAssistant(sessionId, session, ws,
+        'Para iniciar uma análise, faça o upload de um diagrama de arquitetura.');
       return;
     }
 
-    const analysis = await this.analysisRepository.findById(session.analysisId!);
-    const history = await this.buildHistory(sessionId, userMessage.messageId);
+    const analysis = await this.analysisRepository.findById(session.analysisId);
 
+    if (!analysis) {
+      await this.saveAndSendAssistant(sessionId, session, ws,
+        'Análise não encontrada. Faça o upload de um novo diagrama.');
+      return;
+    }
+
+    if (analysis.status === 'failed') {
+      await this.saveAndSendAssistant(sessionId, session, ws,
+        `A análise falhou: ${analysis.error?.message ?? 'erro desconhecido'}. Faça o upload novamente.`);
+      return;
+    }
+
+    if (analysis.status === 'pending' || analysis.status === 'processing') {
+      await this.saveAndSendAssistant(sessionId, session, ws,
+        'O diagrama ainda está sendo processado. Aguarde a conclusão da análise e tente novamente.');
+      return;
+    }
+
+    // Analysis completed — forward to orchestrator via Kafka
+    const history = await this.buildHistory(sessionId, userMessage.messageId);
     await this.chatProducer.publish({
       sessionId,
       question: msg.question,
       history,
-      analysisContext: analysis?.result
+      analysisContext: analysis.result
         ? {
             summary: analysis.result.summary,
             components: analysis.result.components,
@@ -131,23 +132,30 @@ export class WebSocketServer {
     });
   }
 
-  private async resolveImmediateResponse(
-    session: { analysisId?: string },
-    _question: string
-  ): Promise<string | null> {
-    if (!session.analysisId) {
-      return 'Mensagem recebida. Para iniciar uma análise, faça o upload de um diagrama de arquitetura.';
-    }
-
-    const analysis = await this.analysisRepository.findById(session.analysisId);
-    if (!analysis) return 'Análise não encontrada. Faça o upload de um novo diagrama.';
-    if (analysis.status === 'pending') return 'Análise iniciando, aguarde alguns instantes...';
-    if (analysis.status === 'processing') return 'Análise em andamento, aguarde o resultado...';
-    if (analysis.status === 'failed') {
-      return `A análise falhou: ${analysis.error?.message ?? 'erro desconhecido'}. Faça o upload novamente.`;
-    }
-
-    return null;
+  private async saveAndSendAssistant(
+    sessionId: string,
+    session: import('../../domain/entities/Session').Session,
+    ws: WebSocket,
+    content: string
+  ): Promise<void> {
+    const assistantMessage = new Message({
+      messageId: randomUUID(),
+      sessionId,
+      content,
+      role: 'assistant',
+      timestamp: new Date(),
+    });
+    await this.messageRepository.save(assistantMessage);
+    session.touch();
+    await this.sessionRepository.update(session);
+    this.send(ws, {
+      type: 'assistant_message',
+      messageId: assistantMessage.messageId,
+      content: assistantMessage.content,
+      role: 'assistant',
+      timestamp: assistantMessage.timestamp.toISOString(),
+      route: 'no_analysis',
+    });
   }
 
   private async buildHistory(

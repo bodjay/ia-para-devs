@@ -47,6 +47,13 @@ export class Session {
     return this._analysisId;
   }
 
+  rename(name: string): void {
+    if (!name || name.trim() === '') {
+      throw new Error('Session name is required');
+    }
+    this._name = name.trim();
+  }
+
   touch(): void {
     this._lastActiveAt = new Date();
   }

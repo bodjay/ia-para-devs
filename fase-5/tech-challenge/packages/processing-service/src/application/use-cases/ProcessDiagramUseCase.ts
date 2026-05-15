@@ -1,14 +1,9 @@
-import { v4 as uuidv4 } from 'uuid';
-import { ProcessingJob, DiagramConnection, DiagramElement } from '../../domain/entities/ProcessingJob';
+import { ProcessingJob } from '../../domain/entities/ProcessingJob';
 import { IProcessingJobRepository } from '../../domain/repositories/IProcessingJobRepository';
 import {
   IProcessDiagramUseCase,
   DiagramCreatedEvent,
 } from '../../domain/use-cases/IProcessDiagramUseCase';
-import {
-  IDiagramExtractionAgentClient,
-  AgentTimeoutError,
-} from '../../infrastructure/agents/DiagramExtractionAgentClient';
 import { DiagramProcessedProducer } from '../../infrastructure/kafka/DiagramProcessedProducer';
 import { ITextractAdapter } from '../../infrastructure/textract/TextractAdapter';
 
@@ -16,13 +11,12 @@ export class ProcessDiagramUseCase implements IProcessDiagramUseCase {
   constructor(
     private readonly repository: IProcessingJobRepository,
     private readonly textractAdapter: ITextractAdapter,
-    private readonly agentClient: IDiagramExtractionAgentClient,
     private readonly producer: DiagramProcessedProducer
   ) {}
 
   async execute(event: DiagramCreatedEvent): Promise<void> {
     if (!event.diagram?.id) {
-      console.error('Malformed diagram.created event: missing diagramId');
+      console.error('[ProcessDiagramUseCase] Malformed diagram.created event: missing diagramId');
       await this.producer.publishDiagramProcessed({
         diagram: {
           id: event.diagram?.id ?? 'unknown',
@@ -50,80 +44,21 @@ export class ProcessDiagramUseCase implements IProcessDiagramUseCase {
 
     try {
       let extractedText = '';
-      console.log(`[ProcessDiagramUseCase] Iniciando extração Textract | diagramId=${event.diagram.id} storageUrl=${event.diagram.storageUrl}`);
+      console.log(
+        `[ProcessDiagramUseCase] Iniciando extração Textract | diagramId=${event.diagram.id} storageUrl=${event.diagram.storageUrl}`
+      );
       try {
         extractedText = await this.textractAdapter.extractText(event.diagram.storageUrl);
-        console.log(`[ProcessDiagramUseCase] Textract concluído | diagramId=${event.diagram.id} chars=${extractedText.length}`);
+        console.log(
+          `[ProcessDiagramUseCase] Textract concluído | diagramId=${event.diagram.id} chars=${extractedText.length}`
+        );
       } catch (textractError) {
         console.warn(
           `[ProcessDiagramUseCase] Textract falhou | diagramId=${event.diagram.id} erro="${(textractError as Error).message}"`
         );
       }
 
-      const agentResult = await this.agentClient.extract({
-        diagram: {
-          id: event.diagram.id,
-          fileType: event.diagram.fileType,
-          storageUrl: event.diagram.storageUrl,
-        },
-        extractedText,
-        options: {
-          detectText: true,
-          detectShapes: true,
-          detectConnections: true,
-          language: 'pt-BR',
-        },
-      });
-
-      if (agentResult.status === 'failed' || agentResult.error) {
-        job.fail(agentResult.error ?? { code: 'AGENT_FAILED', message: 'Agent returned failed status' });
-        await this.repository.update(job);
-
-        const failedConnections: DiagramConnection[] = agentResult.connections.map((conn) => ({
-          fromElementId: conn.fromElementId,
-          toElementId: conn.toElementId,
-          type: conn.type,
-          label: conn.label,
-        }));
-
-        await this.producer.publishDiagramProcessed({
-          diagram: {
-            id: event.diagram.id,
-            fileName: event.diagram.fileName,
-            fileType: event.diagram.fileType,
-            storageUrl: event.diagram.storageUrl,
-          },
-          processing: {
-            status: 'failed',
-            extractedText: agentResult.extractedText,
-            elements: agentResult.elements.map((el) => ({
-              id: el.id,
-              type: el.type,
-              label: el.label,
-              position: { x: el.boundingBox.x, y: el.boundingBox.y },
-            })),
-            connections: failedConnections,
-          },
-          error: agentResult.error,
-        });
-        return;
-      }
-
-      const elements: DiagramElement[] = agentResult.elements.map((el) => ({
-        id: el.id,
-        type: el.type,
-        label: el.label,
-        position: { x: el.boundingBox.x, y: el.boundingBox.y },
-      }));
-
-      const connections: DiagramConnection[] = agentResult.connections.map((conn) => ({
-        fromElementId: conn.fromElementId,
-        toElementId: conn.toElementId,
-        type: conn.type,
-        label: conn.label,
-      }));
-
-      job.complete(agentResult.extractedText, elements, connections);
+      job.complete(extractedText, [], []);
       await this.repository.update(job);
 
       await this.producer.publishDiagramProcessed({
@@ -135,16 +70,13 @@ export class ProcessDiagramUseCase implements IProcessDiagramUseCase {
         },
         processing: {
           status: 'processed',
-          extractedText: agentResult.extractedText,
-          elements,
-          connections,
+          extractedText,
+          elements: [],
+          connections: [],
         },
       });
     } catch (error) {
-      const processingError =
-        error instanceof AgentTimeoutError
-          ? { code: 'AGENT_TIMEOUT', message: error.message }
-          : { code: 'PROCESSING_ERROR', message: (error as Error).message };
+      const processingError = { code: 'PROCESSING_ERROR', message: (error as Error).message };
 
       job.fail(processingError);
       await this.repository.update(job);

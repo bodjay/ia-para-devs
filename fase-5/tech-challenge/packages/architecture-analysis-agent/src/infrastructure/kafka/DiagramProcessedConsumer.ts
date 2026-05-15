@@ -96,6 +96,7 @@ export class DiagramProcessedConsumer {
       action: 'analyze',
       payload: {
         diagramId: event.diagram.id,
+        extractedText: event.processing.extractedText,
         elements: (event.processing.elements ?? []).map((el) => ({
           id: el.id,
           label: el.label,

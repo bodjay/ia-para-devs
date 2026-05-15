@@ -1,71 +1,38 @@
 
 ### report-service
-Recebe os dados processados, aplica regras de análise arquitetural para identificar componentes, riscos e padrões relevantes, e consolida tudo em um resultado final estruturado, incluindo recomendações e resumo técnico, publicando o evento de conclusão da análise para consumo pelo restante do sistema.
 
-#### Kafka Consumer — diagram.processed
-##### Input
-````json
+Tool server HTTP. Recebe chamada do `architecture-analysis-agent` após inferência LLM, persiste o relatório no MongoDB e retorna o `reportId`.
+
+Não consome Kafka diretamente — é chamado via HTTP pelo agente como uma "tool call".
+
+#### POST /tools/reports
+
+**Request (`AnalysisCompletedEvent`):**
+```json
 {
-  "eventId": "string",
-  "timestamp": "ISO-8601",
-  "diagram": {
-    "id": "string",
-    "fileName": "string",
-    "fileType": "string",
-    "storageUrl": "string"
-  },
-  "processing": {
-    "status": "processed | failed",
-    "extractedText": "string",
-    "elements": [
-      {
-        "type": "microservice | database | broker | client | unknown",
-        "label": "string",
-        "position": {
-          "x": 0,
-          "y": 0
-        }
-      }
-    ]
-  }
-}
-````
-#### Kafka Producer — analysis.completed
-##### Output
-````json
-{
-  "eventId": "string",
-  "timestamp": "ISO-8601",
   "analysisId": "string",
   "diagramId": "string",
   "status": "completed | failed",
   "result": {
     "components": [
-      {
-        "name": "string",
-        "type": "microservice | database | broker | client | unknown",
-        "description": "string"
-      }
+      { "name": "string", "type": "microservice | database | broker | client | unknown", "description": "string", "observations": "string" }
+    ],
+    "architecturePatterns": [
+      { "name": "string", "confidence": 0.0, "description": "string" }
     ],
     "risks": [
-      {
-        "title": "string",
-        "description": "string",
-        "severity": "low | medium | high"
-      }
+      { "title": "string", "description": "string", "severity": "low | medium | high", "affectedComponents": ["string"] }
     ],
     "recommendations": [
-      {
-        "title": "string",
-        "description": "string",
-        "priority": "low | medium | high"
-      }
+      { "title": "string", "description": "string", "priority": "low | medium | high", "relatedRisks": ["string"] }
     ],
     "summary": "string"
   },
-  "error": {
-    "code": "string",
-    "message": "string"
-  }
+  "error": { "code": "string", "message": "string" }
 }
-````
+```
+
+**Response:**
+```json
+{ "reportId": "string" }
+```

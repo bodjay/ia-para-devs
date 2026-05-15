@@ -23,10 +23,13 @@ export function createRouterNode(ollama: OllamaClient) {
 
     logger.info('Classifying question intent', { question: state.question });
 
-    const raw = await ollama.chat([
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: state.question },
-    ]);
+    const raw = await ollama.chat(
+      [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: state.question },
+      ],
+      ollama.routerTimeoutMs
+    );
 
     const route = raw.trim().toLowerCase() as RouteType;
     const resolved = VALID_ROUTES.includes(route) ? route : 'chat';

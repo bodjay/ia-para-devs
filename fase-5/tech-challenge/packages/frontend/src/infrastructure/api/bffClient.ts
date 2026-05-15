@@ -84,7 +84,7 @@ export async function pollAnalysis(
 export async function getSessions(): Promise<SessionRecord[]> {
   const res = await fetch(`${BASE}/sessions`);
   const data = await handleResponse<
-    { id: string; name: string; createdAt: string; lastActiveAt: string; diagramId?: string }[]
+    { id: string; name: string; createdAt: string; lastActiveAt: string; diagramId?: string; analysisId?: string }[]
   >(res);
   return data.map((s) => ({
     id: s.id,
@@ -94,6 +94,20 @@ export async function getSessions(): Promise<SessionRecord[]> {
     diagramId: s.diagramId,
     analysisId: s.analysisId,
   }));
+}
+
+export async function renameSession(id: string, name: string): Promise<{ sessionId: string; name: string }> {
+  const res = await fetch(`${BASE}/sessions/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  return handleResponse(res);
+}
+
+export async function exportSession(id: string): Promise<{ text: string }> {
+  const res = await fetch(`${BASE}/sessions/${id}/export`);
+  return handleResponse(res);
 }
 
 export async function createSession(name: string, id?: string): Promise<SessionRecord> {
@@ -166,6 +180,8 @@ export const bffClient = {
   pollAnalysis,
   getSessions,
   createSession,
+  renameSession,
+  exportSession,
   getAnalysis,
   getMessages,
   sendMessage,

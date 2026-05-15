@@ -1,5 +1,19 @@
 import { IAnalysisClient, AnalysisResponse, AnalysisOptions } from './IAnalysisClient';
 import { AnalysisElement, AnalysisConnection } from '../../domain/use-cases/IAnalyzeArchitectureUseCase';
+import { AnalysisResponseSchema } from './responseSchema';
+
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+const MAX_RETRIES = 2;
+
+function stripFences(raw: string): string {
+  return raw.startsWith('```')
+    ? raw.replace(/^```[^\n]*\n?/, '').replace(/```$/, '').trim()
+    : raw.trim();
+}
 
 export class OllamaAnalysisClient implements IAnalysisClient {
   constructor(
@@ -11,10 +25,47 @@ export class OllamaAnalysisClient implements IAnalysisClient {
   async analyze(
     elements: AnalysisElement[],
     connections: AnalysisConnection[],
-    options: AnalysisOptions
+    options: AnalysisOptions,
+    extractedText?: string
   ): Promise<AnalysisResponse> {
-    const prompt = this.buildAnalysisPrompt(elements, connections, options);
+    const systemPrompt = this.buildAnalysisPrompt(elements, connections, options, extractedText);
+    const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
+    return this.callWithRetry(messages);
+  }
 
+  private async callWithRetry(messages: ChatMessage[]): Promise<AnalysisResponse> {
+    let lastError: Error | null = null;
+    let currentMessages = [...messages];
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const raw = await this.callOllama(currentMessages);
+
+      try {
+        const parsed = AnalysisResponseSchema.parse(JSON.parse(stripFences(raw)));
+        return parsed as AnalysisResponse;
+      } catch (err) {
+        lastError = err as Error;
+        console.warn(
+          `[OllamaAnalysisClient] Validation failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}): ${lastError.message}`
+        );
+
+        if (attempt < MAX_RETRIES) {
+          currentMessages = [
+            ...currentMessages,
+            { role: 'assistant', content: raw },
+            {
+              role: 'user',
+              content: `Your response failed validation. Error: ${lastError.message}. Return corrected valid JSON only, no markdown.`,
+            },
+          ];
+        }
+      }
+    }
+
+    throw lastError!;
+  }
+
+  private async callOllama(messages: ChatMessage[]): Promise<string> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
 
@@ -24,7 +75,7 @@ export class OllamaAnalysisClient implements IAnalysisClient {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: this.model,
-          messages: [{ role: 'user', content: prompt }],
+          messages,
           stream: false,
         }),
         signal: controller.signal,
@@ -35,14 +86,7 @@ export class OllamaAnalysisClient implements IAnalysisClient {
       }
 
       const data = (await response.json()) as { message: { content: string } };
-
-      // Strip markdown code fences if the model wraps the JSON
-      const raw = data.message.content.trim();
-      const json = raw.startsWith('```')
-        ? raw.replace(/^```[^\n]*\n?/, '').replace(/```$/, '').trim()
-        : raw;
-
-      return JSON.parse(json) as AnalysisResponse;
+      return data.message.content;
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
         throw new Error(`timeout: Ollama request timed out after ${this.timeoutMs}ms`);
@@ -56,20 +100,27 @@ export class OllamaAnalysisClient implements IAnalysisClient {
   private buildAnalysisPrompt(
     elements: AnalysisElement[],
     connections: AnalysisConnection[],
-    options: AnalysisOptions
+    options: AnalysisOptions,
+    extractedText?: string
   ): string {
+    const ocrSection = extractedText
+      ? `OCR text extracted from the diagram:\n${extractedText}\n\n`
+      : '';
+
     return `Analyze this software architecture with ${options.analysisDepth} depth. Language: ${options.language}.
 
-Elements: ${JSON.stringify(elements)}
+${ocrSection}Elements: ${JSON.stringify(elements)}
 Connections: ${JSON.stringify(connections)}
 
-Return a JSON object with:
-- components: [{ name, type, description, observations }]
-- architecturePatterns: [{ name, confidence (0-1), description }]
-${options.includeRisks ? '- risks: [{ title, description, severity (low|medium|high), affectedComponents }]' : ''}
-${options.includeRecommendations ? '- recommendations: [{ title, description, priority (low|medium|high), relatedRisks }]' : ''}
-- summary: string describing the overall architecture
+Return a JSON object with this exact structure. All string fields marked as required MUST be non-empty:
+{
+  "components": [{ "name": "<required, non-empty>", "type": "<string>", "description": "<string>", "observations": "<string>" }],
+  "architecturePatterns": [{ "name": "<required, non-empty>", "confidence": <0.0-1.0>, "description": "<string>" }],
+${options.includeRisks ? `  "risks": [{ "title": "<required, non-empty>", "description": "<required, non-empty>", "severity": "low"|"medium"|"high", "affectedComponents": ["<string>"] }],` : '  "risks": [],'}
+${options.includeRecommendations ? `  "recommendations": [{ "title": "<required, non-empty>", "description": "<required, non-empty>", "priority": "low"|"medium"|"high", "relatedRisks": ["<string>"] }],` : '  "recommendations": [],'}
+  "summary": "<required, non-empty string describing the overall architecture>"
+}
 
-Respond with valid JSON only, no markdown.`;
+Respond with valid JSON only. No markdown, no code fences, no extra text.`;
   }
 }

@@ -20,6 +20,7 @@ export interface AnalyzeArchitectureInput {
   action: 'analyze';
   payload: {
     diagramId: string;
+    extractedText?: string;
     elements: AnalysisElement[];
     connections: AnalysisConnection[];
     options?: {

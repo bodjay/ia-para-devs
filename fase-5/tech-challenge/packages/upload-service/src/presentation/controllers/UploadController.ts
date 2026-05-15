@@ -4,12 +4,32 @@ import { ValidationError } from '../../application/use-cases/UploadDiagramUseCas
 import { StorageError } from '../../infrastructure/storage/IStorageAdapter';
 import { KafkaProducerError } from '../../infrastructure/kafka/DiagramEventProducer';
 import { SUPPORTED_FILE_TYPES, MAX_FILE_SIZE_BYTES } from '../../domain/entities/Diagram';
+import { UploadTokenValidator } from '../../infrastructure/redis/UploadTokenValidator';
 
 export class UploadController {
-  constructor(private readonly uploadUseCase: IUploadDiagramUseCase) {}
+  constructor(
+    private readonly uploadUseCase: IUploadDiagramUseCase,
+    private readonly tokenValidator?: UploadTokenValidator
+  ) {}
 
   async upload(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      // Validate Redis upload token when validator is configured
+      let sessionId: string | undefined;
+      if (this.tokenValidator) {
+        const token = req.headers['x-upload-token'] as string | undefined;
+        if (!token) {
+          res.status(401).json({ error: 'Missing X-Upload-Token header' });
+          return;
+        }
+        const payload = await this.tokenValidator.validateAndConsume(token);
+        if (!payload) {
+          res.status(401).json({ error: 'Invalid or expired upload token' });
+          return;
+        }
+        sessionId = payload.sessionId;
+      }
+
       const file = req.file;
 
       if (!file) {
@@ -49,6 +69,7 @@ export class UploadController {
           buffer: file.buffer,
         },
         user: req.body.user,
+        sessionId,
       });
 
       res.status(201).json(result);

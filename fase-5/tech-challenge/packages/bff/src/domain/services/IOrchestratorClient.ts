@@ -10,10 +10,23 @@ export interface OrchestratorResponse {
   route: string;
 }
 
+export interface ExportContextPayload {
+  sessionName: string;
+  analysis?: {
+    summary: string;
+    components: string[];
+    risks: string[];
+    recommendations: string[];
+  };
+  conversationTopics: string[];
+}
+
 export interface IOrchestratorClient {
   chat(
     analysisContext: AnalysisResult | null,
     question: string,
     history: ConversationMessage[]
   ): Promise<OrchestratorResponse>;
+
+  exportContext(payload: ExportContextPayload): Promise<{ text: string }>;
 }

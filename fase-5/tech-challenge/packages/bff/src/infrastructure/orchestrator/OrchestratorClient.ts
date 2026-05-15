@@ -2,6 +2,7 @@ import { Logger } from '@arch-analyzer/common';
 import { AnalysisResult } from '../../domain/entities/AnalysisResult';
 import {
   ConversationMessage,
+  ExportContextPayload,
   IOrchestratorClient,
   OrchestratorResponse,
 } from '../../domain/services/IOrchestratorClient';
@@ -41,6 +42,24 @@ export class OrchestratorClient implements IOrchestratorClient {
     const result = await response.json() as OrchestratorResponse;
     logger.info('Orchestrator response received', { route: result.route });
     return result;
+  }
+
+  async exportContext(payload: ExportContextPayload): Promise<{ text: string }> {
+    logger.info('Requesting context export from orchestrator', { sessionName: payload.sessionName });
+
+    const response = await fetch(`${this.baseUrl}/context/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(130_000),
+    });
+
+    if (!response.ok) {
+      logger.error('Orchestrator export returned non-OK status', { status: response.status });
+      throw new Error(`Orchestrator export error: ${response.status}`);
+    }
+
+    return response.json() as Promise<{ text: string }>;
   }
 
   private toCompact(ctx: AnalysisResult) {
