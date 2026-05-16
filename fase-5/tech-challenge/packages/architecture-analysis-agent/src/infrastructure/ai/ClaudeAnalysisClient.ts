@@ -44,7 +44,8 @@ export class ClaudeAnalysisClient implements IAnalysisClient {
       ? `OCR text extracted from the diagram:\n${extractedText}\n\n`
       : '';
 
-    return `Analyze this software architecture with ${options.analysisDepth} depth. Language: ${options.language}.
+    return `Analyze this software architecture with ${options.analysisDepth} depth.
+IMPORTANT: ALL text content in the JSON response (every string field: name, type, description, observations, title, summary, etc.) MUST be written in ${options.language} (Brazilian Portuguese). Do not use English or any other language for any text field.
 
 ${ocrSection}Elements: ${JSON.stringify(elements)}
 Connections: ${JSON.stringify(connections)}
