@@ -1,8 +1,22 @@
 
 ## Frontend
-Projeto client-side, web, SPA que faz interface com os serviços.
 
-# 🧭 Fluxo de UX — Análise de Diagramas de Arquitetura
+Projeto client-side, web, SPA que faz interface com os serviços via BFF.
+
+### Stack técnica
+- **React 18** (TypeScript) com **Vite**
+- **Redux Toolkit** — gerenciamento de estado global (slices: `analysisSlice`, `chatSlice`, `sessionsSlice`)
+- **Material-UI (MUI)** — componentes visuais
+- **WebSocket** (`ChatWebSocketClient`) — canal bidirecional para mensagens de chat em tempo real
+- **HTTP REST** (`bffClient`) — upload, sessões, histórico de mensagens e polling de análise
+
+### Polling de análise
+Após o upload, o frontend inicia polling no endpoint `GET /api/analysis/:id` com intervalo de **3 segundos** e máximo de **120 tentativas** (~6 minutos). Se o status retornar `completed`, exibe o resultado. Se `failed`, exibe o erro.
+
+### Layout
+A interface possui **sidebars colapsáveis** (esquerda: lista de sessões + busca; direita: barra de relatório de análise). Ambas podem ser recolhidas individualmente para ampliar a área de chat.
+
+# Fluxo de UX — Análise de Diagramas de Arquitetura
 
 ## 1. Entrada no sistema
 **Objetivo:** permitir acesso rápido às análises

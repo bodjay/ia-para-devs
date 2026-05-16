@@ -59,3 +59,5 @@ Publicado no tópico `chat.responded`.
 |---|---|---|
 | `POST` | `/analysis/chat` | Fallback HTTP: `{ question, analysisContext, history }` → `{ response, route }` |
 | `POST` | `/context/export` | Gera prompt Markdown para uso no Claude Code: `{ sessionName, analysis, conversationTopics }` → `{ text }` |
+
+> **Nota:** este agente usa **Ollama exclusivamente** (`OLLAMA_MODEL`, default `qwen3:4b`). Não há suporte a `AI_PROVIDER=claude`. O endpoint `/context/export` também usa Ollama para geração do prompt Markdown.

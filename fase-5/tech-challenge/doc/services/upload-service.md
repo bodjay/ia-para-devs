@@ -6,23 +6,20 @@
 O upload-service é responsável por receber arquivos de diagramas (imagem ou PDF) enviados pelo cliente, validar seus metadados, armazenar o arquivo em um bucket (S3), sakvar seu link de download em umem uma coleção e iniciar o fluxo assíncrono de processamento;
 
 #### POST /upload
-##### Request
-````json
-{
-  "file": {
-    "name": "string",
-    "lastModified": 0,
-    "size": 0,
-    "type": "image/png | image/jpeg | application/pdf",
-    "webkitRelativePath": ""
-  },
-  "user": {
-    "id": "string",
-    "name": "string",
-    "email": "string"
-  }
-}
-````
+
+**Autenticação interna:** requer header `x-upload-token` com token temporário gerado pelo BFF via `POST /sessions/:id/upload-token`.
+
+##### Request (multipart/form-data)
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `file` | `File` | Arquivo de diagrama (`image/png`, `image/jpeg`, `application/pdf`) |
+| `user` | `JSON string` | Identificador do chamador — injetado pelo BFF como `SYSTEM_USER` (não enviado pelo frontend) |
+
+O campo `user` enviado pelo BFF tem sempre o valor fixo:
+```json
+{ "id": "system", "name": "System", "email": "system@arch-analyzer.local" }
+```
 
 ##### Response
 

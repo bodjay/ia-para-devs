@@ -1,8 +1,9 @@
 ## Agents
 
-Os agentes de IA são **Kafka-native workers**: consomem eventos de tópicos Kafka, executam inferência com LLM e publicam o resultado em outro tópico.
+Os agentes de IA são workers assíncronos que consomem eventos de mensageria, executam inferência com LLM e publicam o resultado em outro tópico ou ferramenta HTTP.
 
-Os agentes usam **Ollama com o modelo `qwen3:2b`** (suporta tool calling) ou **Claude API** (configurável via `AI_PROVIDER`).
+- **`architecture-analysis-agent`** — consome **Redis Streams** e publica em **Kafka**. Suporta Claude API ou Ollama (configurável via `AI_PROVIDER`).
+- **`orchestrator-agent`** — consome e publica em **Kafka**. Usa **Ollama exclusivamente** para roteamento e geração de resposta.
 
 ---
 
@@ -34,7 +35,7 @@ Usa `processing.extractedText` (texto OCR do Textract) como contexto principal. 
 }
 ```
 
-**Provider de IA:** Ollama (`qwen3:2b`) ou Claude (`claude-sonnet-4-6`), configurável via `AI_PROVIDER` e `OLLAMA_MODEL`.
+**Provider de IA:** Ollama (`qwen3:4b` padrão) ou Claude (`claude-sonnet-4-6`), configurável via `AI_PROVIDER` e `OLLAMA_MODEL`.
 
 **Tools disponíveis (chamadas ao report-service):**
 
@@ -105,3 +106,5 @@ Usa `processing.extractedText` (texto OCR do Textract) como contexto principal. 
 - `OLLAMA_ROUTER_TIMEOUT_MS` (default: `45000`)
 - `VECTOR_SERVICE_URL` (default: `http://localhost:3006`)
 - `VECTOR_SERVICE_TIMEOUT_MS` (default: `10000`)
+
+> **Nota:** o `orchestrator-agent` usa **Ollama exclusivamente**. Não há suporte a `AI_PROVIDER=claude` neste serviço.

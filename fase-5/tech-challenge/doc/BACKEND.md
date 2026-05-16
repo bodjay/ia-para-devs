@@ -41,11 +41,12 @@ Serviço **Redis Streams-native** responsável por acionar o OCR via AWS Textrac
 
 ### report-service
 
-Tool server HTTP para persistência de relatórios gerados pelo `architecture-analysis-agent`.
+Serviço responsável pela persistência dos relatórios de análise. Expõe um **tool server HTTP** (chamado diretamente pelo `architecture-analysis-agent`) e também consome o evento Kafka `analysis.completed` como fallback de persistência.
 
-- **Porta:** sem porta exposta (serviço interno, chamado apenas pelo `architecture-analysis-agent`)
+- **Porta:** `REPORT_PORT` (default: `3002`, interno — sem porta exposta no host)
 - **Banco:** MongoDB (`arch-analyzer-reports`)
-- **Endpoints:**
+- **Kafka consumer:** `analysis.completed` (group: `report-service-group`) — persiste relatórios via evento Kafka
+- **Endpoints HTTP:**
   - `POST /tools/reports` — recebe `AnalysisCompletedEvent` → cria/atualiza Report → `{ reportId }`
 
 ---

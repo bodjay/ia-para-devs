@@ -20,10 +20,11 @@ sessionId: string
 ```json
 {
   "diagramId": "string",
-  "analysisId": "string",
-  "sessionId": "string"
+  "analysisId": "string"
 }
 ```
+
+> Se `sessionId` for enviado no body, o diagrama é vinculado à sessão automaticamente, mas não é retornado na resposta. Tipos de arquivo não suportados retornam `415 Unsupported Media Type`.
 
 ##### GET /diagrams/:diagramId/image
 Retorna a imagem do diagrama armazenado.
