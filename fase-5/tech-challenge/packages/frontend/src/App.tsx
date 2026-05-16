@@ -1,13 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Collapse,
   CssBaseline,
+  IconButton,
   ThemeProvider,
+  Tooltip,
   Typography,
   createTheme,
 } from '@mui/material';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import Sidebar from './presentation/components/Sidebar/Sidebar';
 import ChatWindow from './presentation/components/ChatWindow/ChatWindow';
 import FileUpload from './presentation/components/FileUpload/FileUpload';
@@ -24,6 +28,8 @@ const theme = createTheme({
 
 function AppContent(): React.ReactElement {
   const dispatch = useDispatch<AppDispatch>();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [diagramCollapsed, setDiagramCollapsed] = useState(false);
 
   const currentSessionId = useSelector(
     (state: RootState) => state.sessions.currentSessionId
@@ -66,30 +72,51 @@ function AppContent(): React.ReactElement {
       {/* ── Sidebar ─────────────────────────────────────────────── */}
       <Box
         sx={{
-          width: 280,
+          width: sidebarCollapsed ? 48 : 280,
           flexShrink: 0,
           borderRight: '1px solid',
           borderColor: 'divider',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          transition: 'width 0.2s ease',
         }}
       >
-        <Box
-          sx={{
-            px: 2,
-            py: 1.5,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
-          <Typography variant="subtitle2" color="text.secondary" fontWeight="bold">
-            ARCH ANALYZER
-          </Typography>
-        </Box>
-        <Box sx={{ flex: 1, overflowY: 'auto' }}>
-          <Sidebar onSessionSelect={handleSessionSelect} />
-        </Box>
+        {sidebarCollapsed ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <Tooltip title="Expandir sessões" placement="right">
+              <IconButton size="small" onClick={() => setSidebarCollapsed(false)}>
+                <ChevronRightIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        ) : (
+          <>
+            <Box
+              sx={{
+                px: 2,
+                py: 1.5,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Typography variant="subtitle2" color="text.secondary" fontWeight="bold">
+                ARCH ANALYZER
+              </Typography>
+              <Tooltip title="Recolher sessões" placement="right">
+                <IconButton size="small" onClick={() => setSidebarCollapsed(true)}>
+                  <ChevronLeftIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+            <Box sx={{ flex: 1, overflowY: 'auto' }}>
+              <Sidebar onSessionSelect={handleSessionSelect} />
+            </Box>
+          </>
+        )}
       </Box>
 
       {/* ── Main area ───────────────────────────────────────────── */}
@@ -113,7 +140,7 @@ function AppContent(): React.ReactElement {
           }}
         >
           <Typography variant="h6" fontWeight="medium">
-            {currentSessionId ? 'Análise de Arquitetura' : 'Selecione uma sessão'}
+            {currentSessionId ? (currentSession?.name ?? 'Análise de Arquitetura') : 'Selecione uma sessão'}
           </Typography>
         </Box>
 
@@ -141,10 +168,15 @@ function AppContent(): React.ReactElement {
             {/* Chat + diagram sidebar */}
             <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', minHeight: 0 }}>
               <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                <ChatWindow sessionId={currentSessionId} analysisResult={result} />
+                <ChatWindow sessionId={currentSessionId} />
               </Box>
               {status === 'completed' && diagramId && (
-                <DiagramSidebar diagramId={diagramId} />
+                <DiagramSidebar
+                  diagramId={diagramId}
+                  analysisResult={result}
+                  collapsed={diagramCollapsed}
+                  onToggleCollapse={() => setDiagramCollapsed(prev => !prev)}
+                />
               )}
             </Box>
           </>
