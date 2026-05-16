@@ -168,7 +168,6 @@ const DiagramSidebar: React.FC<DiagramSidebarProps> = ({
 
             <Box
               sx={{
-                flex: 1,
                 minHeight: 0,
                 display: diagramOpen ? 'flex' : 'none',
                 alignItems: 'center',
