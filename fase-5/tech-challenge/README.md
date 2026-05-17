@@ -39,6 +39,20 @@ Upload → S3 → Redis Streams → OCR (Textract) → Redis Streams
 | [architecture-analysis-agent](doc/agents/architecture-analysis-agent.md) | Agente LLM de análise arquitetural |
 | [orchestrator-agent](doc/agents/orchestrator-agent.md) | Agente LangGraph para chat contextual (RAG) |
 
+## Processo de desenvolvimento
+
+### Spec Driven Development
+
+O projeto foi desenvolvido seguindo o método **Spec Driven Development (SDD)**: antes de qualquer linha de código, toda a solução foi especificada em documentos de escopo, casos de uso, contratos de API, fluxos de mensageria e comportamento dos agentes. Esses artefatos funcionaram como a fonte de verdade durante o desenvolvimento — cada microserviço, agente e componente de frontend foi implementado a partir de uma especificação previamente validada.
+
+Esse método reduziu retrabalho, tornou as decisões arquiteturais explícitas e rastreáveis, e permitiu que o assistente de IA (descrito abaixo) gerasse código aderente ao design sem ambiguidade.
+
+### Assistente de IA — Claude Code
+
+Todo o desenvolvimento foi conduzido com o suporte do **Claude Code**, assistente de IA da Anthropic baseado no modelo Claude Sonnet. O assistente atuou como par de programação ao longo de todo o projeto: geração e refatoração de código, escrita e revisão da documentação, análise de arquitetura, depuração e implementação de features completas.
+
+A combinação de SDD com Claude Code permitiu um ciclo de desenvolvimento em que as especificações guiavam as instruções ao assistente, e o assistente executava com precisão dentro dos limites definidos — tornando o processo mais rápido, rastreável e consistente.
+
 ## Stack
 
 | Camada | Tecnologia |
