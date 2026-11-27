@@ -12,12 +12,6 @@ export interface JigsawPreset {
  */
 export const JIGSAW_PRESETS: readonly JigsawPreset[] = [
   {
-    id: '3x3-facil',
-    label: '3x3 fácil (9 peças)',
-    value:
-      '3:0,-1,-4,0,0,-2,-3,1,0,0,4,2,4,2,2,0,3,1,1,-2,-4,0,4,-1,-2,1,0,0,-1,2,0,-1,-4,0,0,-2',
-  },
-  {
     id: '5x5-medio',
     label: '5x5 médio (25 peças)',
     value:

@@ -201,7 +201,7 @@ function solve() {
     const detail = state.game.describe(result);
     const last = state.history[state.history.length - 1];
 
-    if (!last || last.generation !== result.generation) state.history.push(result);
+    state.history.push(result);
 
     state.game.render(result.view);
     finish(
