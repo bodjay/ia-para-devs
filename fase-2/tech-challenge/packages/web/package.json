@@ -1,0 +1,6 @@
+{
+  "name": "@tech-challenge/web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interface estática do quebra-cabeça."
+}

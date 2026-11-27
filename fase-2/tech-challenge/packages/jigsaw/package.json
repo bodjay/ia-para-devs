@@ -1,0 +1,14 @@
+{
+  "name": "@tech-challenge/jigsaw",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@tech-challenge/genetic": "1.0.0"
+  }
+}
