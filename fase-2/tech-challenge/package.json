@@ -1,0 +1,25 @@
+{
+  "name": "tech-challenge-fase-2",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Quebra-cabeça de encaixe resolvido com algoritmo genético.",
+  "workspaces": [
+    "packages/genetic",
+    "packages/jigsaw",
+    "packages/web",
+    "packages/server"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run build && npm test --workspaces --if-present",
+    "dev": "npm run build && npm start",
+    "start": "node packages/server/dist/index.js"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.17.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.6.3"
+  }
+}

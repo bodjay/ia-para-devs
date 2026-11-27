@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quebra-cabeça com algoritmo genético</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Geist+Mono:wght@400..600&family=Instrument+Sans:wght@400..600&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <nav id="tabs" class="tabs"></nav>
+  </header>
+
+  <main class="workspace">
+    <section class="card board-area">
+      <h2 id="title"></h2>
+
+      <div class="board-toolbar">
+        <label class="stacked"><span class="field-label">Tabuleiro</span> <select id="puzzle"></select></label>
+      </div>
+
+      <div id="board"></div>
+
+      <p id="status" class="status"></p>
+    </section>
+
+    <section class="analysis">
+      <div class="card form-group" aria-label="Parâmetros da execução">
+        <h2>Parâmetros</h2>
+
+        <div class="param-grid">
+          <label class="stacked"><span class="field-label">População</span> <input id="populationSize" type="number" min="2"></label>
+          <label class="stacked"><span class="field-label">Elite</span> <input id="eliteCount" type="number" min="0"></label>
+          <label class="stacked"><span class="field-label">Taxa de mutação</span> <input id="mutationRate" type="number" min="0" max="1" step="0.05"></label>
+          <label class="stacked"><span class="field-label">Torneio</span> <input id="tournamentSize" type="number" min="1"></label>
+          <label class="stacked"><span class="field-label">Gerações máximas</span> <input id="maxGenerations" type="number" min="1"></label>
+          <label class="stacked"><span class="field-label">Limite de estagnação</span> <input id="stagnationLimit" type="number" min="1"></label>
+          <label class="stacked" id="hotstartField"><span class="field-label">Hotstart (% da população)</span> <input id="hotstartPercent" type="number" min="0" max="100" step="5"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chart-header">
+          <div>
+            <h2>Fitness e diversidade por geração</h2>
+            <p class="muted">Fitness é o número de bordas soltas. Quanto menor, melhor; zero é resolvido.</p>
+          </div>
+
+          <ul class="legend">
+            <li><span class="swatch best"></span>Melhor fitness da geração</li>
+            <li><span class="swatch average"></span>Fitness médio</li>
+            <li><span class="swatch diversity"></span>Soluções únicas (%)</li>
+            <li><span class="swatch restart"></span>Reinício</li>
+          </ul>
+        </div>
+
+        <canvas id="chart"></canvas>
+      </div>
+
+      <div class="indicators">
+        <article class="card indicator">
+          <span class="indicator-label">Geração</span>
+          <strong id="generation">0</strong>
+          <span id="speed" class="indicator-detail">-</span>
+        </article>
+
+        <article class="card indicator">
+          <span class="indicator-label">Menor fitness</span>
+          <strong id="bestFitness">-</strong>
+          <span id="improvement" class="indicator-detail">-</span>
+        </article>
+
+        <article class="card indicator">
+          <span class="indicator-label">Fitness médio</span>
+          <strong id="averageFitness">-</strong>
+          <span id="deviation" class="indicator-detail">-</span>
+        </article>
+
+        <article class="card indicator">
+          <span class="indicator-label">Diversidade</span>
+          <strong id="diversity">-</strong>
+          <span id="entropy" class="indicator-detail">-</span>
+        </article>
+
+        <article class="card indicator">
+          <span class="indicator-label">Estagnação</span>
+          <strong id="stagnation">-</strong>
+          <div class="bar"><span id="stagnationBar"></span></div>
+          <span id="nextRestart" class="indicator-detail">-</span>
+        </article>
+
+        <article class="card indicator">
+          <span class="indicator-label">Reinícios</span>
+          <strong id="restarts">0</strong>
+          <span id="restartInterval" class="indicator-detail">-</span>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <div class="dock" role="toolbar" aria-label="Execução">
+    <span id="runIndicator" class="run-indicator" title="Parado"></span>
+
+    <button id="solve" type="button" class="primary" title="Resolver">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg>
+      Resolver
+    </button>
+
+    <button id="stop" type="button" title="Parar" disabled>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5"/></svg>
+      Parar
+    </button>
+
+    <button id="reset" type="button" title="Restaurar">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path class="stroke" d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v3h3"/></svg>
+      Restaurar
+    </button>
+
+    <div id="controls" class="controls"></div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

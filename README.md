@@ -5,3 +5,6 @@
 
 # FASE-3
 [Tech Challenge](./fase-3/tech-challenge/)
+
+# FASE-2
+[Tech Challenge](./fase-2/tech-challenge/)
